@@ -23,6 +23,7 @@ import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.test.Test
 import com.malinskiy.marathon.test.TestBatch
 import com.malinskiy.marathon.test.toTestName
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.receiveOrNull
 import kotlinx.coroutines.isActive
@@ -34,7 +35,7 @@ const val ERROR_STUCK = "Test got stuck. You can increase the timeout in setting
 class AndroidDeviceTestRunner(private val device: AdamAndroidDevice) {
     private val logger = MarathonLogging.logger("AndroidDeviceTestRunner")
 
-    @OptIn(ExperimentalStdlibApi::class)
+    @ExperimentalCoroutinesApi
     suspend fun execute(
         configuration: Configuration,
         rawTestBatch: TestBatch,
@@ -68,6 +69,15 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice) {
                             return@withTimeoutOrNull
                         } else {
                             processEvents(update, listener)
+                            if (configuration.failFast) {
+                                val hasFailed = update
+                                    .filterIsInstance<TestRunFailed>()
+                                    .isNotEmpty()
+                                if (hasFailed) {
+                                    listener.testRunStopped(0)
+                                    return@withTimeoutOrNull
+                                }
+                            }
                         }
                     }
 
@@ -75,7 +85,6 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice) {
                 } else {
                     listener.testRunEnded(0, emptyMap())
                 }
-                Unit
             } ?: listener.testRunFailed(ERROR_STUCK)
         } catch (e: IOException) {
             val errorMessage = "adb error while running tests ${testBatch.tests.map { it.toTestName() }}"
