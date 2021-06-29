@@ -13,6 +13,7 @@ import com.malinskiy.marathon.execution.AnnotationFilter
 import com.malinskiy.marathon.execution.CompositionFilter
 import com.malinskiy.marathon.execution.FullyQualifiedClassnameFilter
 import com.malinskiy.marathon.execution.SimpleClassnameFilter
+import com.malinskiy.marathon.execution.SimpleClassnameFilterFromFile
 import com.malinskiy.marathon.execution.TestFilter
 import com.malinskiy.marathon.execution.TestMethodFilter
 import com.malinskiy.marathon.execution.TestPackageFilter
@@ -61,6 +62,10 @@ class TestFilterDeserializer : StdDeserializer<TestFilter>(TestFilter::class.jav
             "fragmentation" -> {
                 (node as ObjectNode).remove("type")
                 codec.treeToValue<FragmentationFilter>(node) ?: throw ConfigurationException("Missing filter strategy")
+            }
+            "simple-test-name-from-file" -> {
+                (node as ObjectNode).remove("type")
+                codec.treeToValue<SimpleClassnameFilterFromFile>(node) ?: throw ConfigurationException("Missing filter strategy")
             }
 
             else -> throw ConfigurationException("Unrecognized filter type $type")

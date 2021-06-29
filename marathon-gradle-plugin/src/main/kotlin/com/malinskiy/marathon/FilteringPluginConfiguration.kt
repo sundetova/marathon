@@ -5,6 +5,7 @@ import com.malinskiy.marathon.execution.AnnotationFilter
 import com.malinskiy.marathon.execution.FilteringConfiguration
 import com.malinskiy.marathon.execution.FullyQualifiedClassnameFilter
 import com.malinskiy.marathon.execution.SimpleClassnameFilter
+import com.malinskiy.marathon.execution.SimpleClassnameFilterFromFile
 import com.malinskiy.marathon.execution.TestFilter
 import com.malinskiy.marathon.execution.TestMethodFilter
 import com.malinskiy.marathon.execution.TestPackageFilter
@@ -46,6 +47,7 @@ open class Wrapper {
     open var testMethodFilter: ArrayList<String>? = null
     open var annotationFilter: ArrayList<String>? = null
     open var annotationDataFilter: ArrayList<String>? = null
+    open var simpleClassnameFilterFromFile: ArrayList<String>? = null
 }
 
 fun Wrapper.toList(): List<TestFilter> {
@@ -63,6 +65,12 @@ fun Wrapper.toList(): List<TestFilter> {
         mutableList.addAll(it)
     }
     this.simpleClassNameFilter?.map { SimpleClassnameFilter(it.toRegex()) }?.let {
+        mutableList.addAll(it)
+    }
+    this.simpleClassnameFilterFromFile?.map {
+        val filterData = it.split(",")
+        SimpleClassnameFilterFromFile(filterData.first(), filterData[1].toRegex())
+    }?.let {
         mutableList.addAll(it)
     }
     this.annotationDataFilter?.map {
