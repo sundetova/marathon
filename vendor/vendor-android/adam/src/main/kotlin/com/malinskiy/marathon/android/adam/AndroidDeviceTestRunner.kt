@@ -59,25 +59,29 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice, private val
             try {
                 withTimeoutOrNull(configuration.testBatchTimeoutMillis) {
                     notifyIgnoredTest(ignoredTests, listener)
-                    clearData(androidConfiguration, info)
-                    listener.beforeTestRun()
-                    logger.debug { "Execution started" }
-                    val localChannel = device.executeTestRequest(runnerRequest)
-                    channel = localChannel
+                    if (testBatch.tests.isNotEmpty()) {
+                        clearData(androidConfiguration, info)
+                        listener.beforeTestRun()
+                        logger.debug { "Execution started" }
+                        val localChannel = device.executeTestRequest(runnerRequest)
+                        channel = localChannel
 
-                    while (!localChannel.isClosedForReceive && isActive) {
-                        val update: List<TestEvent>? = withTimeoutOrNull(configuration.testOutputTimeoutMillis) {
-                            localChannel.receiveOrNull() ?: emptyList()
+                        while (!localChannel.isClosedForReceive && isActive) {
+                            val update: List<TestEvent>? = withTimeoutOrNull(configuration.testOutputTimeoutMillis) {
+                                localChannel.receiveOrNull() ?: emptyList()
+                            }
+                            if (update == null) {
+                                listener.testRunFailed(ERROR_STUCK)
+                                return@withTimeoutOrNull
+                            } else {
+                                processEvents(update, listener)
+                            }
                         }
-                        if (update == null) {
-                            listener.testRunFailed(ERROR_STUCK)
-                            return@withTimeoutOrNull
-                        } else {
-                            processEvents(update, listener)
-                        }
+
+                        logger.debug { "Execution finished" }
+                    } else {
+                        listener.testRunEnded(0, emptyMap())
                     }
-
-                    logger.debug { "Execution finished" }
                     Unit
                 } ?: listener.testRunFailed(ERROR_STUCK)
             } catch (e: IOException) {
@@ -85,6 +89,7 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice, private val
                 logger.error(e) { errorMessage }
                 listener.testRunFailed(errorMessage)
             } finally {
+                listener.afterTestRun()
                 channel?.cancel(null)
             }
         }
