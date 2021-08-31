@@ -6,7 +6,7 @@ import java.io.File
 
 data class SimpleClassnameFilterFromFile(
     @JsonProperty("fileName") val fileName: String,
-    @JsonProperty("regex") val regex: Regex
+    @JsonProperty("regex") val regex: Regex?
 ) : TestFilter {
 
     var testFileContent: String = readFileAsLinesUsingBufferedReader(fileName).get(0)
@@ -17,9 +17,12 @@ data class SimpleClassnameFilterFromFile(
             return tests.filter {
                 testFileContent.contains(it.clazz)
             }
-        } else {
+        } else if (regex != null) {
             println("No file content found. Running by annotation $regex")
             return tests.filter { it.metaProperties.map { it.name }.any(regex::matches) }
+        } else {
+            println("No regex provided, running all tests")
+            return tests
         }
     }
 
