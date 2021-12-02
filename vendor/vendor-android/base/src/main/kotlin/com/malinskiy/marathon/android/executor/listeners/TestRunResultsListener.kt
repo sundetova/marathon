@@ -60,7 +60,13 @@ class TestRunResultsListener(
         }
 
         val nonNullTestResults = testResults.filter {
-            it.test.method != "null"
+            /**
+             * If we have a result with null method, then we ignore it unless explicitly requested to
+             *
+             * An example of null method response is @BeforeClass failure
+             * An example of null method request is an ignored test class with remote parser
+             */
+            it.test.method != "null" || testBatch.tests.contains(it.test)
         }
 
         val finished = nonNullTestResults.filter {
@@ -101,7 +107,7 @@ class TestRunResultsListener(
         val lastCompletedTestEndTime = testRunResult
             .testResults
             .values
-            .maxBy { it.endTime }
+            .maxByOrNull { it.endTime }
             ?.endTime
             ?: creationTime
 
@@ -119,6 +125,11 @@ class TestRunResultsListener(
     }
 
     private fun mergeParameterisedResults(results: MutableMap<TestIdentifier, AndroidTestResult>): Map<TestIdentifier, AndroidTestResult> {
+        /**
+         * If we explicitly requested parameterized tests - skip merging
+         */
+        if (testBatch.tests.any { it.method.contains('[') && it.method.contains(']') }) return results
+
         val result = mutableMapOf<TestIdentifier, AndroidTestResult>()
         for (e in results) {
             val test = e.key
@@ -130,7 +141,7 @@ class TestRunResultsListener(
                 } else {
                     result[realIdentifier]?.status = maybeExistingParameterizedResult.status + e.value.status
                     //Needed for proper result aggregation
-                    progressReporter.addTests(poolId, 1)
+                    progressReporter.addTestDiscoveredDuringRuntime(poolId, test.toTest())
                 }
             } else {
                 result[test] = e.value
@@ -157,7 +168,14 @@ class TestRunResultsListener(
     }
 
     private fun Test.identifier(): TestIdentifier {
-        return TestIdentifier("$pkg.$clazz", method)
+        val classname = StringBuilder().apply {
+            if (pkg.isNotEmpty()) {
+                append("${pkg}.")
+            }
+            append(clazz)
+        }.toString()
+
+        return TestIdentifier(classname, method)
     }
 
     private fun AndroidTestResult.isSuccessful(): Boolean =

@@ -10,7 +10,6 @@ data class SimpleClassnameFilterFromFile(
 ) : TestFilter {
 
     var testFileContent: String = readFileAsLinesUsingBufferedReader(fileName).get(0)
-    override fun validate() = Unit
 
     override fun filter(tests: List<Test>): List<Test> {
         if (testFileContent.length > 5) {
@@ -29,7 +28,7 @@ data class SimpleClassnameFilterFromFile(
     override fun filterNot(tests: List<Test>): List<Test> = tests.filterNot { testFileContent.contains(it.clazz) }
 
     override fun equals(other: Any?): Boolean {
-        if (other !is SimpleClassnameFilter) return false
+        if (other !is SimpleClassnameFilterFromFile) return false
         return fileName.contentEquals(other.regex.toString())
     }
 

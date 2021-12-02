@@ -1,8 +1,25 @@
 package com.malinskiy.marathon.android.adam
 
+import com.malinskiy.adam.AndroidDebugBridgeClient
 import com.malinskiy.adam.request.device.Device
 import com.malinskiy.adam.request.device.DeviceState
 import java.util.concurrent.ConcurrentHashMap
+
+class MultiServerDeviceStateTracker {
+    private val clients: ConcurrentHashMap<String, DeviceStateTracker> = ConcurrentHashMap()
+
+    fun update(client: AndroidDebugBridgeClient, updatedDevices: List<Device>): List<Pair<String, TrackingUpdate>> {
+        val tracker = clients[client.id()] ?: DeviceStateTracker()
+        clients[client.id()] = tracker
+
+        return tracker.update(updatedDevices)
+    }
+
+    private fun AndroidDebugBridgeClient.id() = "$host:$port"
+
+    fun getTracker(client: AndroidDebugBridgeClient) =
+        clients[client.id()] ?: throw RuntimeException("Client ${client.id()} not registered for device tracking")
+}
 
 class DeviceStateTracker {
     private val devices: ConcurrentHashMap<String, DeviceState> = ConcurrentHashMap()
@@ -17,6 +34,7 @@ class DeviceStateTracker {
                     updates.add(Pair(serial, TrackingUpdate.DISCONNECTED))
                     devices.remove(serial)
                 }
+                else -> Unit
             }
         }
 
@@ -39,7 +57,7 @@ class DeviceStateTracker {
 
         return when {
             previousState != DeviceState.DEVICE -> processNewDevice(newState, serial)
-            previousState == DeviceState.DEVICE && newState != DeviceState.DEVICE -> return TrackingUpdate.DISCONNECTED
+            newState != DeviceState.DEVICE -> return TrackingUpdate.DISCONNECTED
             else -> TrackingUpdate.NOTHING_TO_DO
         }
     }

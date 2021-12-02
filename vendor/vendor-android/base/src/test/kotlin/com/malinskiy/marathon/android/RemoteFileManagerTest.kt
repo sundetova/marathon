@@ -12,9 +12,9 @@ import com.malinskiy.marathon.android.adam.TestDeviceFactory
 import com.malinskiy.marathon.android.adam.boot
 import com.malinskiy.marathon.android.adam.features
 import com.malinskiy.marathon.android.adam.shell
-import com.malinskiy.marathon.android.configuration.AggregationMode
-import com.malinskiy.marathon.android.configuration.FileSyncConfiguration
-import com.malinskiy.marathon.android.configuration.FileSyncEntry
+import com.malinskiy.marathon.config.vendor.android.AggregationMode
+import com.malinskiy.marathon.config.vendor.android.FileSyncConfiguration
+import com.malinskiy.marathon.config.vendor.android.FileSyncEntry
 import com.nhaarman.mockitokotlin2.mock
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -147,6 +147,42 @@ class RemoteFileManagerTest {
 
             val actual = manager.remoteVideoForTest(com.malinskiy.marathon.test.Test("pkg", "clazz", "method", emptyList()), "batch-id")
             assertThat(actual).isEqualTo("/sdcard/pkg.clazz-method-batch-id.mp4")
+        }
+    }
+
+    @Test
+    fun testRemoteVideoWithLongFileName() {
+        val configuration = TestConfigurationFactory.create(
+            fileSyncConfiguration = FileSyncConfiguration(
+                mutableListOf(
+                    FileSyncEntry(
+                        "screenshots",
+                        AggregationMode.DEVICE
+                    )
+                )
+            )
+        )
+        val device = TestDeviceFactory.create(client, configuration, mock())
+        val manager = RemoteFileManager(device)
+
+        runBlocking {
+            server.multipleSessions {
+                serial("emulator-5554") {
+                    boot()
+                }
+                features("emulator-5554")
+            }
+            device.setup()
+
+            val actual = manager.remoteVideoForTest(
+                com.malinskiy.marathon.test.Test(
+                    "pkg",
+                    "clazz",
+                    "testWithAVeryLongNameThatExceeds255CharactersqwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM",
+                    emptyList()
+                ), "batch-id"
+            )
+            assertThat(actual).isEqualTo("/sdcard/pkg.clazz-testWithAVeryLongNameThatExceeds255CharactersqwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNMqwertyuiopasdfghjklzxcvbnmQWERT-batch-id.mp4")
         }
     }
 }
