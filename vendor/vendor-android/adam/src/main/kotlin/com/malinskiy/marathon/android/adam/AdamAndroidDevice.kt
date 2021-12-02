@@ -11,11 +11,16 @@ import com.malinskiy.adam.exception.UnsupportedSyncProtocolException
 import com.malinskiy.adam.request.Feature
 import com.malinskiy.adam.request.device.DeviceState
 import com.malinskiy.adam.request.device.FetchDeviceFeaturesRequest
+import com.malinskiy.adam.request.forwarding.LocalTcpPortSpec
+import com.malinskiy.adam.request.forwarding.RemoteTcpPortSpec
 import com.malinskiy.adam.request.framebuffer.BufferedImageScreenCaptureAdapter
 import com.malinskiy.adam.request.framebuffer.ScreenCaptureRequest
 import com.malinskiy.adam.request.pkg.InstallRemotePackageRequest
 import com.malinskiy.adam.request.pkg.UninstallRemotePackageRequest
 import com.malinskiy.adam.request.prop.GetPropRequest
+import com.malinskiy.adam.request.reverse.RemoveReversePortForwardRequest
+import com.malinskiy.adam.request.reverse.ReversePortForwardRequest
+import com.malinskiy.adam.request.reverse.ReversePortForwardingRule
 import com.malinskiy.adam.request.shell.v1.ShellCommandRequest
 import com.malinskiy.adam.request.sync.AndroidFile
 import com.malinskiy.adam.request.sync.AndroidFileType
@@ -27,21 +32,23 @@ import com.malinskiy.adam.request.testrunner.TestEvent
 import com.malinskiy.adam.request.testrunner.TestRunnerRequest
 import com.malinskiy.marathon.analytics.internal.pub.Track
 import com.malinskiy.marathon.android.AndroidAppInstaller
-import com.malinskiy.marathon.android.AndroidConfiguration
 import com.malinskiy.marathon.android.AndroidTestBundleIdentifier
 import com.malinskiy.marathon.android.BaseAndroidDevice
-import com.malinskiy.marathon.android.VideoConfiguration
-import com.malinskiy.marathon.android.configuration.SerialStrategy
 import com.malinskiy.marathon.android.exception.CommandRejectedException
 import com.malinskiy.marathon.android.exception.InstallException
 import com.malinskiy.marathon.android.exception.TransferException
 import com.malinskiy.marathon.android.executor.listeners.line.LineListener
+import com.malinskiy.marathon.android.extension.toScreenRecorderCommand
+import com.malinskiy.marathon.config.Configuration
+import com.malinskiy.marathon.config.vendor.VendorConfiguration
+import com.malinskiy.marathon.config.vendor.android.SerialStrategy
+import com.malinskiy.marathon.config.vendor.android.VideoConfiguration
 import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.device.NetworkState
 import com.malinskiy.marathon.exceptions.DeviceLostException
-import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.execution.TestBatchResults
 import com.malinskiy.marathon.execution.progress.ProgressReporter
+import com.malinskiy.marathon.extension.withTimeout
 import com.malinskiy.marathon.extension.withTimeoutOrNull
 import com.malinskiy.marathon.test.TestBatch
 import com.malinskiy.marathon.time.Timer
@@ -50,6 +57,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.newFixedThreadPoolContext
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import java.awt.image.BufferedImage
@@ -59,13 +67,13 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.system.measureTimeMillis
 
 class AdamAndroidDevice(
-    private val client: AndroidDebugBridgeClient,
+    internal val client: AndroidDebugBridgeClient,
     private val deviceStateTracker: DeviceStateTracker,
     private val logcatManager: LogcatManager,
     private val testBundleIdentifier: AndroidTestBundleIdentifier,
     adbSerial: String,
     configuration: Configuration,
-    androidConfiguration: AndroidConfiguration,
+    androidConfiguration: VendorConfiguration.AndroidConfiguration,
     track: Track,
     timer: Timer,
     serialStrategy: SerialStrategy
@@ -77,6 +85,16 @@ class AdamAndroidDevice(
     private val imageScreenCaptureAdapter = BufferedImageScreenCaptureAdapter()
     private lateinit var supportedFeatures: List<Feature>
 
+    val portForwardingRules = mutableMapOf<String, ReversePortForwardingRule>()
+
+    override val serialNumber: String
+        get() = when {
+            booted -> realSerialNumber
+            else -> "${client.host.hostAddress}:${client.port}:$adbSerial"
+        }
+
+    override suspend fun detectRealSerialNumber() = "${client.host.hostAddress}:${client.port}:${super.detectRealSerialNumber()}"
+
     override suspend fun setup() {
         withContext(coroutineContext) {
             super.setup()
@@ -84,11 +102,12 @@ class AdamAndroidDevice(
             fetchProps()
             supportedFeatures = client.execute(FetchDeviceFeaturesRequest(adbSerial))
             logcatManager.subscribe(this@AdamAndroidDevice)
+            setupTestAccess()
         }
     }
 
     private val dispatcher by lazy {
-        newFixedThreadPoolContext(2, "AndroidDevice - execution - $adbSerial")
+        newFixedThreadPoolContext(2, "AndroidDevice - execution - ${client.host.hostAddress}:${client.port}:${adbSerial}")
     }
     override val coroutineContext: CoroutineContext = dispatcher
 
@@ -126,7 +145,7 @@ class AdamAndroidDevice(
             val local = File(localFilePath)
 
             measureFileTransfer(local) {
-                val stat = client.execute(CompatStatFileRequest(remoteFilePath, supportedFeatures), serialNumber)
+                val stat = client.execute(CompatStatFileRequest(remoteFilePath, supportedFeatures), adbSerial)
                 if (stat.exists()) {
                     val channel = client.execute(
                         CompatPullFileRequest(remoteFilePath, local, supportedFeatures, coroutineScope = this, size = stat.size().toLong()),
@@ -268,7 +287,7 @@ class AdamAndroidDevice(
                 client.execute(ScreenCaptureRequest(imageScreenCaptureAdapter), serial = adbSerial)
             }
         } catch (e: UnsupportedImageProtocolException) {
-            logger.warn(e) { "Unable to retrieve screenshot from device $adbSerial" }
+            logger.warn(e) { "Unable to retrieve screenshot from device $serialNumber" }
             null
         }
     }
@@ -365,6 +384,11 @@ class AdamAndroidDevice(
     override fun dispose() {
         dispatcher.close()
         logcatManager.unsubscribe(this)
+        runBlocking {
+            portForwardingRules.forEach { (_, rule) ->
+                client.execute(RemoveReversePortForwardRequest(rule.localSpec), adbSerial)
+            }
+        }
     }
 
     fun executeTestRequest(runnerRequest: TestRunnerRequest): ReceiveChannel<List<TestEvent>> {
@@ -391,8 +415,28 @@ class AdamAndroidDevice(
     }
 
     override fun onLine(line: String) {
-        logcatListeners.forEach { listener ->
-            listener.onLine(line)
+        synchronized(logcatListeners) {
+            logcatListeners.forEach { listener ->
+                listener.onLine(line)
+            }
+        }
+    }
+
+    private suspend fun setupTestAccess() {
+        val accessConfiguration = androidConfiguration.testAccessConfiguration
+
+        if (accessConfiguration.adb && !isLocalEmulator()) {
+            reversePortForward(
+                "adb",
+                ReversePortForwardingRule(adbSerial, RemoteTcpPortSpec(client.port), LocalTcpPortSpec(client.port))
+            )
+        }
+    }
+
+    private suspend fun reversePortForward(name: String, rule: ReversePortForwardingRule) {
+        withTimeout(androidConfiguration.timeoutConfiguration.portForward) {
+            client.execute(ReversePortForwardRequest(rule.localSpec, rule.remoteSpec), adbSerial)
+            portForwardingRules[name] = rule
         }
     }
 }

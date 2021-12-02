@@ -1,17 +1,26 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("kotlin-android-extensions")
     id("marathon") version "0.7.0-SNAPSHOT"
 }
 
 android {
-    buildToolsVersion("30.0.2")
-    compileSdkVersion(30)
+    buildToolsVersion = "30.0.3"
+    compileSdk = 30
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    packagingOptions {
+        exclude("META-INF/INDEX.LIST")
+        exclude("META-INF/io.netty.versions.properties")
+    }
 
     defaultConfig {
-        minSdkVersion(18)
-        targetSdkVersion(30)
+        minSdk = 21
+        targetSdk = 30
 
         applicationId = "com.example"
         versionCode = 1
@@ -32,10 +41,9 @@ android {
 }
 
 marathon {
-    instrumentationArgs {
-        put("debug", "false")
+    allureConfiguration {
+        enabled = true
     }
-    vendor = com.malinskiy.marathon.android.VendorType.ADAM
 }
 
 dependencies {
@@ -43,6 +51,8 @@ dependencies {
     implementation(Libraries.constraintLayout)
     implementation(Libraries.kotlinStdLib)
 
+    androidTestImplementation(TestLibraries.testOutputEnhancer)
+    androidTestImplementation(TestLibraries.adamJunit4)
     androidTestImplementation(TestLibraries.testRunner)
     androidTestImplementation(TestLibraries.testRules)
     androidTestImplementation(TestLibraries.extJunit)
