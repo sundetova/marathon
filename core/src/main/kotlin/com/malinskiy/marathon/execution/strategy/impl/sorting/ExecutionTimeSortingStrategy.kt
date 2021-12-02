@@ -1,19 +1,22 @@
 package com.malinskiy.marathon.execution.strategy.impl.sorting
 
 import com.malinskiy.marathon.analytics.external.MetricsProvider
-import com.malinskiy.marathon.config.strategy.SortingStrategyConfiguration
 import com.malinskiy.marathon.execution.strategy.SortingStrategy
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.test.Test
+import java.time.Instant
+import java.util.*
 
-class ExecutionTimeSortingStrategy(private val cnf: SortingStrategyConfiguration.ExecutionTimeSortingStrategyConfiguration) :
-    SortingStrategy {
+class ExecutionTimeSortingStrategy(
+    val percentile: Double,
+    val timeLimit: Instant
+) : SortingStrategy {
 
     val logger = MarathonLogging.logger(ExecutionTimeSortingStrategy::class.java.simpleName)
 
     override fun process(metricsProvider: MetricsProvider): Comparator<Test> =
         Comparator.comparingDouble<Test> {
-            val expectedDuration = metricsProvider.executionTime(it, cnf.percentile, cnf.timeLimit)
+            val expectedDuration = metricsProvider.executionTime(it, percentile, timeLimit)
             expectedDuration
         }.reversed()
 
@@ -23,20 +26,20 @@ class ExecutionTimeSortingStrategy(private val cnf: SortingStrategyConfiguration
 
         other as ExecutionTimeSortingStrategy
 
-        if (cnf.percentile != other.cnf.percentile) return false
-        if (cnf.timeLimit != other.cnf.timeLimit) return false
+        if (percentile != other.percentile) return false
+        if (timeLimit != other.timeLimit) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = cnf.percentile.hashCode()
-        result = 31 * result + cnf.timeLimit.hashCode()
+        var result = percentile.hashCode()
+        result = 31 * result + timeLimit.hashCode()
         return result
     }
 
     override fun toString(): String {
-        return "ExecutionTimeSortingStrategy(percentile=${cnf.percentile}, timeLimit=${cnf.timeLimit}, logger=$logger)"
+        return "ExecutionTimeSortingStrategy(percentile=$percentile, timeLimit=$timeLimit, logger=$logger)"
     }
 
 

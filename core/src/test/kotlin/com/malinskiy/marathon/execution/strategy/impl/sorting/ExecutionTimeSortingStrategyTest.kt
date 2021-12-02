@@ -1,9 +1,7 @@
 package com.malinskiy.marathon.execution.strategy.impl.sorting
 
 import com.malinskiy.marathon.MetricsProviderStub
-import com.malinskiy.marathon.config.strategy.SortingStrategyConfiguration
 import com.malinskiy.marathon.execution.TestShard
-import com.malinskiy.marathon.extension.toSortingStrategy
 import com.malinskiy.marathon.generateTests
 import org.amshove.kluent.shouldBe
 import org.junit.jupiter.api.Test
@@ -12,8 +10,7 @@ import java.time.temporal.ChronoUnit
 
 class ExecutionTimeSortingStrategyTest {
     val instant: Instant = Instant.now()
-    val strategy = SortingStrategyConfiguration.ExecutionTimeSortingStrategyConfiguration(0.8, Instant.now().minus(1, ChronoUnit.DAYS))
-        .toSortingStrategy()
+    val strategy = ExecutionTimeSortingStrategy(0.8, Instant.now().minus(1, ChronoUnit.DAYS))
 
     @Test
     fun `strategy with min success rate 0_8, single test shard, should return 3 tests sorted by execution time`() {

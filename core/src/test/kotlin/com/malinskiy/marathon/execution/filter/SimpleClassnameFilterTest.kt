@@ -1,9 +1,9 @@
 package com.malinskiy.marathon.execution.filter
 
-import com.malinskiy.marathon.config.TestFilterConfiguration
-import com.malinskiy.marathon.config.exceptions.ConfigurationException
-import com.malinskiy.marathon.extension.toTestFilter
+import com.malinskiy.marathon.exceptions.ConfigurationException
+import com.malinskiy.marathon.execution.SimpleClassnameFilter
 import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldEqual
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -15,7 +15,7 @@ class SimpleClassnameFilterTest {
     private val complexTest = stubTest("ComplexTest")
     private val someClass = stubTest("SomeClass")
     private val simpleClassnameFilter =
-        TestFilterConfiguration.SimpleClassnameFilterConfiguration("""^((?!Abstract).)*Test${'$'}""".toRegex()).toTestFilter()
+        SimpleClassnameFilter("""^((?!Abstract).)*Test${'$'}""".toRegex())
     val tests = listOf(
         simpleTest,
         complexTest,
@@ -27,18 +27,18 @@ class SimpleClassnameFilterTest {
 
     @Test
     fun shouldFilter() {
-        simpleClassnameFilter.filter(tests) shouldBeEqualTo listOf(simpleTest, complexTest)
+        simpleClassnameFilter.filter(tests) shouldEqual listOf(simpleTest, complexTest)
     }
 
     @Test
     fun shouldFilterNot() {
-        simpleClassnameFilter.filterNot(tests) shouldBeEqualTo listOf(someClass)
+        simpleClassnameFilter.filterNot(tests) shouldEqual listOf(someClass)
     }
 
     @Test
     fun `should throw exception when more than one parameter specified`() {
         assertThrows<ConfigurationException> {
-            TestFilterConfiguration.SimpleClassnameFilterConfiguration(
+            SimpleClassnameFilter(
                 regex = """^((?!Abstract).)*Test${'$'}""".toRegex(),
                 values = listOf("SimpleTest")
             ).validate()
@@ -47,9 +47,7 @@ class SimpleClassnameFilterTest {
 
     @Test
     fun `should filter if values are specified`() {
-        TestFilterConfiguration.SimpleClassnameFilterConfiguration(values = listOf("SimpleTest"))
-            .toTestFilter()
-            .filter(tests) shouldBeEqualTo listOf(simpleTest)
+        SimpleClassnameFilter(values = listOf("SimpleTest")).filter(tests) shouldBeEqualTo listOf(simpleTest)
     }
 
     @Test
@@ -61,8 +59,7 @@ class SimpleClassnameFilterTest {
             """.trimIndent()
             )
         }
-        TestFilterConfiguration.SimpleClassnameFilterConfiguration(file = file).toTestFilter()
-            .filter(tests) shouldBeEqualTo listOf(simpleTest)
+        SimpleClassnameFilter(file = file).filter(tests) shouldBeEqualTo listOf(simpleTest)
     }
 }
 

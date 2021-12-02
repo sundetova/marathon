@@ -1,10 +1,10 @@
 package com.malinskiy.marathon.exceptions
 
 import com.bugsnag.Bugsnag
+import com.malinskiy.marathon.BuildConfig
 import com.malinskiy.marathon.config.AppType
-import com.malinskiy.marathon.core.BuildConfig
 import com.malinskiy.marathon.log.MarathonLogging
-import java.util.Base64
+import java.util.*
 
 private val log = MarathonLogging.logger {}
 

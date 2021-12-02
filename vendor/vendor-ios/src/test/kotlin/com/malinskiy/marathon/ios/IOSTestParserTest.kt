@@ -1,37 +1,60 @@
 package com.malinskiy.marathon.ios
 
-import com.malinskiy.marathon.config.vendor.VendorConfiguration
-import kotlinx.coroutines.runBlocking
+import com.malinskiy.marathon.execution.Configuration
+import com.malinskiy.marathon.test.Test as MarathonTest
 import org.amshove.kluent.shouldContainSame
 import org.junit.jupiter.api.Test
 import java.io.File
-import com.malinskiy.marathon.test.Test as MarathonTest
 
 class IOSTestParserTest {
+    private val parser = IOSTestParser()
     private val sourceRoot =
         File(javaClass.classLoader.getResource("sample-xcworkspace/sample-appUITests").file)
     private val derivedDataDir =
         File(javaClass.classLoader.getResource("sample-xcworkspace/derived-data").file)
     private val xctestrunPath =
         File(javaClass.classLoader.getResource("sample-xcworkspace/derived-data/Build/Products/UITesting_iphonesimulator11.2-x86_64.xctestrun").file)
-    private val vendorConfiguration = VendorConfiguration.IOSConfiguration(
-        derivedDataDir = derivedDataDir,
-        xctestrunPath = xctestrunPath,
-        remoteUsername = "testuser",
-        remotePrivateKey = File("/home/fakekey"),
-        knownHostsPath = null,
-        remoteRsyncPath = "/remote/rsync",
-        sourceRoot = sourceRoot,
-        debugSsh = false,
-        alwaysEraseSimulators = true
+    private val configuration = Configuration(
+        name = "",
+        outputDir = File(""),
+        analyticsConfiguration = null,
+        poolingStrategy = null,
+        shardingStrategy = null,
+        sortingStrategy = null,
+        batchingStrategy = null,
+        flakinessStrategy = null,
+        retryStrategy = null,
+        filteringConfiguration = null,
+        ignoreFailures = null,
+        isCodeCoverageEnabled = null,
+        fallbackToScreenshots = null,
+        strictMode = null,
+        uncompletedTestRetryQuota = null,
+        testClassRegexes = null,
+        includeSerialRegexes = null,
+        excludeSerialRegexes = null,
+        testBatchTimeoutMillis = null,
+        testOutputTimeoutMillis = null,
+        debug = null,
+        screenRecordingPolicy = null,
+        vendorConfiguration = IOSConfiguration(
+            derivedDataDir = derivedDataDir,
+            xctestrunPath = xctestrunPath,
+            remoteUsername = "testuser",
+            remotePrivateKey = File("/home/fakekey"),
+            knownHostsPath = null,
+            remoteRsyncPath = "/remote/rsync",
+            sourceRoot = sourceRoot,
+            debugSsh = false,
+            alwaysEraseSimulators = true
+        ),
+        analyticsTracking = false,
+        deviceInitializationTimeoutMillis = null
     )
-    private val parser = IOSTestParser(vendorConfiguration)
 
     @Test
     fun `should return accurate list of tests`() {
-        val extractedTests = runBlocking {
-            parser.extract()
-        }
+        val extractedTests = parser.extract(configuration)
 
         extractedTests shouldContainSame listOf(
             MarathonTest("sample-appUITests", "StoryboardTests", "testButton", emptyList()),

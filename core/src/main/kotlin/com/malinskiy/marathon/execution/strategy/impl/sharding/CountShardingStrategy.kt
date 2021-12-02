@@ -1,14 +1,14 @@
 package com.malinskiy.marathon.execution.strategy.impl.sharding
 
-import com.malinskiy.marathon.config.strategy.ShardingStrategyConfiguration
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.malinskiy.marathon.execution.TestShard
 import com.malinskiy.marathon.execution.strategy.ShardingStrategy
 import com.malinskiy.marathon.test.Test
 
-class CountShardingStrategy(private val cnf: ShardingStrategyConfiguration.CountShardingStrategyConfiguration) : ShardingStrategy {
+class CountShardingStrategy(@JsonProperty("count") private val count: Int) : ShardingStrategy {
     override fun createShard(tests: Collection<Test>): TestShard {
         return TestShard(tests.flatMap { test ->
-            (0 until cnf.count).map { test }
+            (0 until count).map { test }
         })
     }
 
@@ -18,16 +18,18 @@ class CountShardingStrategy(private val cnf: ShardingStrategyConfiguration.Count
 
         other as CountShardingStrategy
 
-        if (cnf.count != cnf.count) return false
+        if (count != other.count) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return cnf.count
+        return count
     }
 
     override fun toString(): String {
-        return "CountShardingStrategy(count=${cnf.count})"
+        return "CountShardingStrategy(count=$count)"
     }
+
+
 }

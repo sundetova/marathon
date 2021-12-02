@@ -1,10 +1,10 @@
 package com.malinskiy.marathon.execution.strategy.impl.flakiness
 
 import com.malinskiy.marathon.analytics.external.MetricsProvider
-import com.malinskiy.marathon.config.strategy.FlakinessStrategyConfiguration
 import com.malinskiy.marathon.execution.TestShard
 import com.malinskiy.marathon.execution.strategy.FlakinessStrategy
 import com.malinskiy.marathon.test.Test
+import java.time.Instant
 
 /**
  * The idea is that flakiness anticipates the flakiness of the test based on the probability of test passing
@@ -14,8 +14,11 @@ import com.malinskiy.marathon.test.Test
  * (0.5 x 0.5 x 0.5 = 0.125 is the probability of all tests failing, so with probability 0.875 > 0.8 at least one of tests will pass).
  */
 
-class ProbabilityBasedFlakinessStrategy(val cnf: FlakinessStrategyConfiguration.ProbabilityBasedFlakinessStrategyConfiguration) :
-    FlakinessStrategy {
+class ProbabilityBasedFlakinessStrategy(
+    val minSuccessRate: Double,
+    val maxCount: Int,
+    val timeLimit: Instant
+) : FlakinessStrategy {
 
     override fun process(
         testShard: TestShard,
@@ -24,13 +27,13 @@ class ProbabilityBasedFlakinessStrategy(val cnf: FlakinessStrategyConfiguration.
         val tests = testShard.tests
         val output = mutableListOf<Test>()
         tests.forEach {
-            val successRate = metricsProvider.successRate(it, cnf.timeLimit)
+            val successRate = metricsProvider.successRate(it, timeLimit)
 
-            if (successRate < cnf.minSuccessRate) {
-                val maxFailRate = 1.0 - cnf.minSuccessRate
+            if (successRate < minSuccessRate) {
+                val maxFailRate = 1.0 - minSuccessRate
                 var currentFailRate = 1.0 - successRate
                 var counter = 0
-                while (currentFailRate > maxFailRate && counter < cnf.maxCount) {
+                while (currentFailRate > maxFailRate && counter < maxCount) {
                     output.add(it)
                     currentFailRate *= currentFailRate
                     counter++
@@ -46,22 +49,22 @@ class ProbabilityBasedFlakinessStrategy(val cnf: FlakinessStrategyConfiguration.
 
         other as ProbabilityBasedFlakinessStrategy
 
-        if (cnf.minSuccessRate != other.cnf.minSuccessRate) return false
-        if (cnf.maxCount != other.cnf.maxCount) return false
-        if (cnf.timeLimit != other.cnf.timeLimit) return false
+        if (minSuccessRate != other.minSuccessRate) return false
+        if (maxCount != other.maxCount) return false
+        if (timeLimit != other.timeLimit) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = cnf.minSuccessRate.hashCode()
-        result = 31 * result + cnf.maxCount
-        result = 31 * result + cnf.timeLimit.hashCode()
+        var result = minSuccessRate.hashCode()
+        result = 31 * result + maxCount
+        result = 31 * result + timeLimit.hashCode()
         return result
     }
 
     override fun toString(): String {
-        return "ProbabilityBasedFlakinessStrategy(minSuccessRate=${cnf.minSuccessRate}, maxCount=${cnf.maxCount}, timeLimit=${cnf.timeLimit})"
+        return "ProbabilityBasedFlakinessStrategy(minSuccessRate=$minSuccessRate, maxCount=$maxCount, timeLimit=$timeLimit)"
     }
 
 

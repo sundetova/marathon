@@ -12,20 +12,19 @@ import com.malinskiy.adam.request.testrunner.TestRunStartedEvent
 import com.malinskiy.adam.request.testrunner.TestRunStopped
 import com.malinskiy.adam.request.testrunner.TestRunnerRequest
 import com.malinskiy.adam.request.testrunner.TestStarted
+import com.malinskiy.marathon.android.AndroidConfiguration
 import com.malinskiy.marathon.android.AndroidTestBundleIdentifier
 import com.malinskiy.marathon.android.InstrumentationInfo
-import com.malinskiy.marathon.android.adam.execution.ArgumentsFactory
 import com.malinskiy.marathon.android.executor.listeners.AndroidTestRunListener
 import com.malinskiy.marathon.android.extension.isIgnored
 import com.malinskiy.marathon.android.model.TestIdentifier
-import com.malinskiy.marathon.config.Configuration
-import com.malinskiy.marathon.config.vendor.VendorConfiguration
-import com.malinskiy.marathon.extension.bashEscape
+import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.test.Test
 import com.malinskiy.marathon.test.TestBatch
 import com.malinskiy.marathon.test.toTestName
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.receiveOrNull
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
@@ -34,7 +33,6 @@ const val ERROR_STUCK = "Test got stuck. You can increase the timeout in setting
 
 class AndroidDeviceTestRunner(private val device: AdamAndroidDevice, private val bundleIdentifier: AndroidTestBundleIdentifier) {
     private val logger = MarathonLogging.logger("AndroidDeviceTestRunner")
-    private val argumentsFactory = ArgumentsFactory(device)
 
     @OptIn(ExperimentalStdlibApi::class)
     suspend fun execute(
@@ -46,14 +44,12 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice, private val
         val ignoredTests = rawTestBatch.tests.filter { test -> test.isIgnored() }
         val testBatch = TestBatch(rawTestBatch.tests - ignoredTests, rawTestBatch.id)
         if (testBatch.tests.isEmpty()) {
-            listener.beforeTestRun()
             notifyIgnoredTest(ignoredTests, listener)
             listener.testRunEnded(0, emptyMap())
-            listener.afterTestRun()
             return
         }
 
-        val androidConfiguration = configuration.vendorConfiguration as VendorConfiguration.AndroidConfiguration
+        val androidConfiguration = configuration.vendorConfiguration as AndroidConfiguration
         val infoToTestMap: Map<InstrumentationInfo, Test> = testBatch.tests.associateBy {
             bundleIdentifier.identify(it).instrumentationInfo
         }
@@ -63,26 +59,29 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice, private val
             try {
                 withTimeoutOrNull(configuration.testBatchTimeoutMillis) {
                     notifyIgnoredTest(ignoredTests, listener)
-                    clearData(androidConfiguration, info)
-                    listener.beforeTestRun()
+                    if (testBatch.tests.isNotEmpty()) {
+                        clearData(androidConfiguration, info)
+                        listener.beforeTestRun()
+                        logger.debug { "Execution started" }
+                        val localChannel = device.executeTestRequest(runnerRequest)
+                        channel = localChannel
 
-                    logger.debug { "Running ${String(runnerRequest.serialize())}" }
-                    val localChannel = device.executeTestRequest(runnerRequest)
-                    channel = localChannel
+                        while (!localChannel.isClosedForReceive && isActive) {
+                            val update: List<TestEvent>? = withTimeoutOrNull(configuration.testOutputTimeoutMillis) {
+                                localChannel.receiveOrNull() ?: emptyList()
+                            }
+                            if (update == null) {
+                                listener.testRunFailed(ERROR_STUCK)
+                                return@withTimeoutOrNull
+                            } else {
+                                processEvents(update, listener)
+                            }
+                        }
 
-                    while (!localChannel.isClosedForReceive && isActive) {
-                        val update: List<TestEvent>? = withTimeoutOrNull(configuration.testOutputTimeoutMillis) {
-                            localChannel.receiveCatching().getOrNull() ?: emptyList()
-                        }
-                        if (update == null) {
-                            listener.testRunFailed(ERROR_STUCK)
-                            return@withTimeoutOrNull
-                        } else {
-                            processEvents(update, listener)
-                        }
+                        logger.debug { "Execution finished" }
+                    } else {
+                        listener.testRunEnded(0, emptyMap())
                     }
-
-                    logger.debug { "Execution finished" }
                     Unit
                 } ?: listener.testRunFailed(ERROR_STUCK)
             } catch (e: IOException) {
@@ -127,7 +126,7 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice, private val
         }
     }
 
-    private suspend fun clearData(androidConfiguration: VendorConfiguration.AndroidConfiguration, info: InstrumentationInfo) {
+    private suspend fun clearData(androidConfiguration: AndroidConfiguration, info: InstrumentationInfo) {
         if (androidConfiguration.applicationPmClear) {
             device.safeClearPackage(info.applicationPackage)?.trim()?.also {
                 logger.debug { "Package ${info.applicationPackage} cleared: $it" }
@@ -159,43 +158,31 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice, private val
 
     private fun prepareTestRunnerRequest(
         configuration: Configuration,
-        androidConfiguration: VendorConfiguration.AndroidConfiguration,
+        androidConfiguration: AndroidConfiguration,
         info: InstrumentationInfo,
         testBatch: TestBatch
     ): TestRunnerRequest {
         val tests = testBatch.tests.map {
-            val pkg = when {
-                it.pkg.isNotEmpty() -> "${it.pkg}."
-                else -> ""
-            }
-            val clazz = it.clazz
-            val method = it.method
-            if (it.method != "null") {
-                "${pkg}${clazz}#$method"
-            } else {
-                /**
-                 * Special case for tests without any methods
-                 */
-                "${pkg}${clazz}"
-            }.bashEscape()
+            "${it.pkg}.${it.clazz}#${it.method}"
         }
 
         logger.debug { "tests = ${tests.toList()}" }
-        val overrides = argumentsFactory.generate(configuration, androidConfiguration)
 
-        val request = TestRunnerRequest(
+        return TestRunnerRequest(
             testPackage = info.instrumentationPackage,
             runnerClass = info.testRunnerClass,
             noWindowAnimations = true,
             instrumentOptions = InstrumentOptions(
                 clazz = tests,
                 coverageFile = if (configuration.isCodeCoverageEnabled) "${device.externalStorageMount}/coverage/coverage-${testBatch.id}.ec" else null,
-                overrides = overrides
+                overrides = androidConfiguration.instrumentationArgs.toMutableMap().apply {
+                    if (configuration.isCodeCoverageEnabled) {
+                        put("coverage", "true")
+                    }
+                }
             ),
             socketIdleTimeout = Long.MAX_VALUE
         )
-
-        return request
     }
 }
 

@@ -29,7 +29,7 @@ class InfluxDbTracker(
                     .tag("package", testResult.test.pkg)
                     .tag("class", testResult.test.clazz)
                     .tag("method", testResult.test.method)
-                    .tag("deviceSerial", device.safeSerialNumber)
+                    .tag("deviceSerial", device.serialNumber)
                     .addField("ignored", if (testResult.isIgnored) 1.0 else 0.0)
                     .addField("success", if (testResult.status == TestStatus.PASSED) 1.0 else 0.0)
                     .addField("duration", testResult.durationMillis())

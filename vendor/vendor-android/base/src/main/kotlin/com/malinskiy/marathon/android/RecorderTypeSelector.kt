@@ -1,22 +1,15 @@
 package com.malinskiy.marathon.android
 
-import com.malinskiy.marathon.config.vendor.android.RecorderType
-import com.malinskiy.marathon.config.vendor.android.ScreenRecordConfiguration
 import com.malinskiy.marathon.device.DeviceFeature
 
 object RecorderTypeSelector {
     fun selectRecorderType(supportedFeatures: Collection<DeviceFeature>, configuration: ScreenRecordConfiguration): DeviceFeature? {
-        val preferredFeature = when (configuration.preferableRecorderType) {
-            RecorderType.VIDEO -> DeviceFeature.VIDEO
-            RecorderType.SCREENSHOT -> DeviceFeature.SCREENSHOT
-            null -> null
-        }
-
+        val preferred = configuration.preferableRecorderType
         val screenshotEnabled = recorderEnabled(DeviceFeature.SCREENSHOT, configuration)
         val videoEnabled = recorderEnabled(DeviceFeature.VIDEO, configuration)
 
-        if (preferredFeature != null && supportedFeatures.contains(preferredFeature) && recorderEnabled(preferredFeature, configuration)) {
-            return preferredFeature
+        if (preferred != null && supportedFeatures.contains(preferred) && recorderEnabled(preferred, configuration)) {
+            return preferred
         }
 
         return when {

@@ -1,9 +1,7 @@
 package com.malinskiy.marathon.execution.strategy.impl.sorting
 
 import com.malinskiy.marathon.MetricsProviderStub
-import com.malinskiy.marathon.config.strategy.SortingStrategyConfiguration
 import com.malinskiy.marathon.execution.TestShard
-import com.malinskiy.marathon.extension.toSortingStrategy
 import com.malinskiy.marathon.generateTests
 import org.amshove.kluent.shouldBe
 import org.junit.jupiter.api.Test
@@ -13,8 +11,7 @@ import java.time.temporal.ChronoUnit
 class SuccessRateSortingStrategyTest {
     @Test
     fun `strategy with default ordering, single test shard, should return 3 tests sorted by descending success rate`() {
-        val strategy = SortingStrategyConfiguration.SuccessRateSortingStrategyConfiguration(Instant.now().minus(1, ChronoUnit.DAYS))
-            .toSortingStrategy()
+        val strategy = SuccessRateSortingStrategy(Instant.now().minus(1, ChronoUnit.DAYS))
         val tests = generateTests(3)
         val testShard = TestShard(tests)
 
@@ -32,10 +29,10 @@ class SuccessRateSortingStrategyTest {
 
     @Test
     fun `strategy with ascending ordering, single test shard, should return 3 tests sorted by descending success rate`() {
-        val strategy = SortingStrategyConfiguration.SuccessRateSortingStrategyConfiguration(
+        val strategy = SuccessRateSortingStrategy(
             Instant.now().minus(1, ChronoUnit.DAYS),
             ascending = true
-        ).toSortingStrategy()
+        )
 
         val tests = generateTests(3)
         val testShard = TestShard(tests)
@@ -54,10 +51,10 @@ class SuccessRateSortingStrategyTest {
 
     @Test
     fun `strategy with descending ordering, single test shard, should return 3 tests sorted by descending success rate`() {
-        val strategy = SortingStrategyConfiguration.SuccessRateSortingStrategyConfiguration(
+        val strategy = SuccessRateSortingStrategy(
             Instant.now().minus(1, ChronoUnit.DAYS),
             ascending = false
-        ).toSortingStrategy()
+        )
         val tests = generateTests(3)
         val testShard = TestShard(tests)
         val metricsProvider = MetricsProviderStub(

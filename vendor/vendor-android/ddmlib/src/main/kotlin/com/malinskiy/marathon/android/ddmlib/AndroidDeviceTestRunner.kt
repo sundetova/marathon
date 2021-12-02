@@ -6,13 +6,13 @@ import com.android.ddmlib.TimeoutException
 import com.android.ddmlib.testrunner.ITestRunListener
 import com.android.ddmlib.testrunner.RemoteAndroidTestRunner
 import com.android.ddmlib.testrunner.TestIdentifier
+import com.malinskiy.marathon.android.AndroidConfiguration
 import com.malinskiy.marathon.android.AndroidTestBundleIdentifier
 import com.malinskiy.marathon.android.InstrumentationInfo
 import com.malinskiy.marathon.android.executor.listeners.AndroidTestRunListener
 import com.malinskiy.marathon.android.extension.isIgnored
-import com.malinskiy.marathon.config.Configuration
-import com.malinskiy.marathon.config.vendor.VendorConfiguration
 import com.malinskiy.marathon.exceptions.DeviceLostException
+import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.test.Test
 import com.malinskiy.marathon.test.TestBatch
@@ -36,14 +36,12 @@ class AndroidDeviceTestRunner(private val device: DdmlibAndroidDevice, private v
         val testBatch = TestBatch(rawTestBatch.tests - ignoredTests)
         val listenerAdapter = listener.toDdmlibTestListener()
         if (testBatch.tests.isEmpty()) {
-            listener.beforeTestRun()
             notifyIgnoredTest(ignoredTests, listenerAdapter)
             listener.testRunEnded(0, emptyMap())
-            listener.afterTestRun()
             return
         }
 
-        val androidConfiguration = configuration.vendorConfiguration as VendorConfiguration.AndroidConfiguration
+        val androidConfiguration = configuration.vendorConfiguration as AndroidConfiguration
         val infoToTestMap: Map<InstrumentationInfo, Test> = testBatch.tests.associateBy {
             bundleIdentifier.identify(it).instrumentationInfo
         }
@@ -92,7 +90,7 @@ class AndroidDeviceTestRunner(private val device: DdmlibAndroidDevice, private v
         }
     }
 
-    private suspend fun clearData(androidConfiguration: VendorConfiguration.AndroidConfiguration, info: InstrumentationInfo) {
+    private suspend fun clearData(androidConfiguration: AndroidConfiguration, info: InstrumentationInfo) {
         if (androidConfiguration.applicationPmClear) {
             device.ddmsDevice.safeClearPackage(info.applicationPackage)?.also {
                 logger.debug { "Package ${info.applicationPackage} cleared: $it" }
@@ -124,7 +122,7 @@ class AndroidDeviceTestRunner(private val device: DdmlibAndroidDevice, private v
 
     private fun prepareTestRunner(
         configuration: Configuration,
-        androidConfiguration: VendorConfiguration.AndroidConfiguration,
+        androidConfiguration: AndroidConfiguration,
         info: InstrumentationInfo,
         testBatch: TestBatch
     ): RemoteAndroidTestRunner {
@@ -142,7 +140,7 @@ class AndroidDeviceTestRunner(private val device: DdmlibAndroidDevice, private v
         runner.setMaxTimeout(configuration.testBatchTimeoutMillis, TimeUnit.MILLISECONDS)
         runner.setClassNames(tests)
 
-        androidConfiguration.instrumentationArgs.forEach { (key, value) ->
+        androidConfiguration.instrumentationArgs.forEach { key, value ->
             runner.addInstrumentationArg(key, value)
         }
 

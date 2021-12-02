@@ -4,8 +4,7 @@ import com.malinskiy.marathon.ios.cmd.remote.CommandResult
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.test.Test
 import java.io.File
-import java.util.Locale
-import java.util.UUID
+import java.util.*
 
 object RemoteFileManager {
 
@@ -35,8 +34,7 @@ object RemoteFileManager {
     fun remoteXcresultFile(device: IOSDevice): File = remoteFile(device, File(xcresultFileName(device)))
 
     private fun xctestrunFileName(device: IOSDevice): String = "${device.udid}.xctestrun"
-    private fun xcresultFileName(device: IOSDevice): String =
-        "${device.udid}.${UUID.randomUUID().toString().uppercase(Locale.ENGLISH)}.xcresult"
+    private fun xcresultFileName(device: IOSDevice): String = "${device.udid}.${UUID.randomUUID().toString().toUpperCase()}.xcresult"
 
     private fun remoteFile(device: IOSDevice, file: File): File = remoteDirectory(device = device).resolve(file)
 

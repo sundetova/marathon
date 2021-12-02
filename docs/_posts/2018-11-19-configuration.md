@@ -15,13 +15,13 @@ Below is an example of Marathonfile (without the vendor module configuration:
 name: "sample-app tests"
 outputDir: "./marathon"
 analyticsConfiguration:
-  type: "influxdb"
-  url: "http://influx.svc.cluster.local:8086"
-  user: "root"
-  password: "root"
-  dbName: "marathon"
+  influx:
+    url: "http://influx.svc.cluster.local:8086"
+    user: "root"
+    password: "root"
+    dbName: "marathon"
 poolingStrategy:
-  type: "omni"
+  - type: "omni"
 shardingStrategy:
   type: "count"
   count: 5
@@ -96,10 +96,10 @@ marathon {
   }
   filteringConfiguration {
     allowlist {
-      add(SimpleClassnameFilterConfiguration(".*".toRegex()))
+      add(SimpleClassnameFilter(".*".toRegex()))
     }
     blocklist {
-      add(SimpleClassnameFilterConfiguration("$^".toRegex()))
+      add(SimpleClassnameFilter("$^".toRegex()))
     }
   }
   testClassRegexes = listOf("^((?!Abstract).)*Test$")
@@ -116,15 +116,11 @@ marathon {
 }
 ```
 
-When specifying **relative host file** paths in the configuration they will be resolved relative to the directory of the Marathonfile, e.g. if
-you have `/home/user/app/Marathonfile` with `baseOutputDir = "./output"` then the actual path to the output directory will
-be `/home/user/app/output`.
-
-Below you will find a list of currently supported configuration parameters and examples of how to set them up. Keep in mind that some
+Here you will find a list of currently supported configuration parameters and examples of how to set them up. Keep in mind that some of the
 additional parameters might not be supported by all vendor modules. If you find that something doesn't work - please submit an issue for a
 vendor module at fault.
 
-* TOC
+* TOC 
 {:toc}
 
 # General parameters
@@ -213,17 +209,17 @@ affect the other one, e.g. regular and end-to-end tests.
 
 ```yaml
 analyticsConfiguration:
-  type: "influxdb"
-  url: "http://influx.svc.cluster.local:8086"
-  user: "root"
-  password: "root"
-  dbName: "marathon"
-  retentionPolicyConfiguration:
-    name: "rpMarathonTest"
-    duration: "90d"
-    shardDuration: "1h"
-    replicationFactor: 5
-    isDefault: false
+  influx:
+    url: "http://influx.svc.cluster.local:8086"
+    user: "root"
+    password: "root"
+    dbName: "marathon"
+    retentionPolicyConfiguration:
+      name: "rpMarathonTest"
+      duration: "90d"
+      shardDuration: "1h"
+      replicationFactor: 5
+      isDefault: false
 ```
 
 {% endtab %} {% tab analytics-influxdb Gradle %}
@@ -270,10 +266,10 @@ Graphite can be used as an alternative to InfluxDB. It uses the following parame
 
 ```yaml
 analyticsConfiguration:
-  type: "graphite"
-  host: "influx.svc.cluster.local"
-  port: "8080"
-  prefix: "prf"
+  graphite:
+    host: "influx.svc.cluster.local"
+    port: "8080"
+    prefix: "prf"
 ```
 
 {% endtab %} {% tab analytics-graphite Gradle %}
@@ -320,7 +316,7 @@ All connected devices are merged into one group. **This is the default mode**.
 
 ```yaml
 poolingStrategy:
-  type: "omni"
+  - type: "omni"
 ```
 
 {% endtab %} {% tab pooling-omni Gradle %}
@@ -351,7 +347,7 @@ Devices are grouped by their ABI, e.g. *x86* and *mips*.
 
 ```yaml
 poolingStrategy:
-  type: "abi"
+  - type: "abi"
 ```
 
 {% endtab %} {% tab pooling-abi Gradle %}
@@ -384,7 +380,7 @@ Devices are grouped by manufacturer, e.g. *Samsung* and *Yota*.
 
 ```yaml
 poolingStrategy:
-  type: "manufacturer"
+  - type: "manufacturer"
 ```
 
 {% endtab %} {% tab pooling-manufacturer Gradle %}
@@ -417,7 +413,7 @@ Devices are grouped by model name, e.g. *LG-D855* and *SM-N950F*.
 
 ```yaml
 poolingStrategy:
-  type: "device-model"
+  - type: "device-model"
 ```
 
 {% endtab %} {% tab pooling-model Gradle %}
@@ -450,7 +446,7 @@ Devices are grouped by OS version, e.g. *24* and *25*.
 
 ```yaml
 poolingStrategy:
-  type: "os-version"
+  - type: "os-version"
 ```
 
 {% endtab %} {% tab pooling-os Gradle %}
@@ -944,14 +940,14 @@ In order to indicate to marathon which tests you want to execute you can use the
 
 First allowlist is applied, then the blocklist. Each accepts a *TestFilter*:
 
-| YAML type                         | Gradle class                                    | Description                                                                                |
-| --------------------------------- |:-----------------------------------------------:| ------------------------------------------------------------------------------------------:|
-| "fully-qualified-test-name"       | `FullyQualifiedTestnameFilterConfiguration`     | Filters tests by their FQTN which is `$package.$class#$method`. The `#` sign is important! |
-| "fully-qualified-class-name"      | `FullyQualifiedClassnameFilterConfiguration`    | Filters tests by their FQCN which is `$package.$class`                                     |
-| "simple-class-name"               | `SimpleClassnameFilterConfiguration`            | Filters tests by using only test class name, e.g. `MyTest`                                 |
-| "package"                         | `TestPackageFilterConfiguration`                | Filters tests by using only test package, e.g. `com.example`                               |
-| "method"                          | `TestMethodFilterConfiguration`                 | Filters tests by using only test method, e.g. `myComplicatedTest`                          |
-| "annotation"                      | `AnnotationFilterConfiguration`                 | Filters tests by using only test annotation name, e.g. `androidx.test.filters.LargeTest`   |
+| YAML type                         | Gradle class                       | Description                                                                                |
+| --------------------------------- |:----------------------------------:| ------------------------------------------------------------------------------------------:|
+| "fully-qualified-test-name"       | `FullyQualifiedTestnameFilter`     | Filters tests by their FQTN which is `$package.$class#$method`. The `#` sign is important! |
+| "fully-qualified-class-name"      | `FullyQualifiedClassnameFilter`    | Filters tests by their FQCN which is `$package.$class`                                     |
+| "simple-class-name"               | `SimpleClassnameFilter`            | Filters tests by using only test class name, e.g. `MyTest`                                 |
+| "package"                         | `TestPackageFilter`                | Filters tests by using only test package, e.g. `com.example`                               |
+| "method"                          | `TestMethodFilter`                 | Filters tests by using only test method, e.g. `myComplicatedTest`                          |
+| "annotation"                      | `AnnotationFilter`                 | Filters tests by using only test annotation name, e.g. `androidx.test.filters.LargeTest`   |
 
 All the filters can be used in allowlist and in blocklist block as well, for example the following will run only smoke tests:
 
@@ -1037,16 +1033,14 @@ allowlist:
 ```kotlin
 marathon {
   filteringConfiguration {
-    allowlist {
-      add(
-        FullyQualifiedTestnameFilterConfiguration(
-          values = listOf(
-            "com.example.ElaborateTest#testMethod",
-            "com.example.subpackage.OtherTest#testSomethingElse",
-          )
+    allowlist = mutableListOf(
+      FullyQualifiedTestnameFilter(
+        values = listOf(
+          "com.example.ElaborateTest#testMethod",
+          "com.example.subpackage.OtherTest#testSomethingElse",
         )
       )
-    }
+    )
   }
 }
 ```
@@ -1143,20 +1137,20 @@ marathon {
 marathon {
   filteringConfiguration {
     allowlist = mutableListOf(
-      SimpleClassnameFilterConfiguration(".*".toRegex()),
-      FullyQualifiedClassnameFilterConfiguration(".*".toRegex()),
-      TestMethodFilterConfiguration(".*".toRegex()),
-      CompositionFilterConfiguration(
+      SimpleClassnameFilter(".*".toRegex()),
+      FullyQualifiedClassnameFilter(".*".toRegex()),
+      TestMethodFilter(".*".toRegex()),
+      CompositionFilter(
         listOf(
-          TestPackageFilterConfiguration(".*".toRegex()),
-          TestMethodFilterConfiguration(".*".toRegex())
+          TestPackageFilter(".*".toRegex()),
+          TestMethodFilter(".*".toRegex())
         ),
-        CompositionFilterConfiguration.OPERATION.UNION
+        CompositionFilter.OPERATION.UNION
       )
     )
     blocklist = mutableListOf(
-      TestPackageFilterConfiguration(".*".toRegex()),
-      AnnotationFilterConfiguration(".*".toRegex())
+      TestPackageFilter(".*".toRegex()),
+      AnnotationFilter(".*".toRegex())
     )
   }
 }
@@ -1165,7 +1159,6 @@ marathon {
 {% endtab %} {% endtabs %}
 
 ## Fragmented execution of tests
-
 This is a test filter similar to sharded test execution that [AOSP provides][6].
 
 It is intended to be used in situations where it is not possible to connect multiple execution devices to a single test run, e.g. CI setup
@@ -1174,7 +1167,8 @@ that can schedule parallel jobs each containing a single execution device. There
 * **count** - the number of overall fragments (e.g. 10 parallel execution)
 * **index** - current execution index (in our case of 10 executions valid indexes are 0..9)
 
-This is a dynamic programming technique, hence the results will be sub-optimal compared to connecting multiple devices to the same test run
+This is a dynamic programming technique, hence the results will be sub-optimal compared to connecting multiple devices to the same test
+run
 
 {% tabs fragmentation %} {% tab fragmentation Marathonfile %}
 
@@ -1192,7 +1186,7 @@ filteringConfiguration:
 marathon {
   filteringConfiguration {
     allowlist = mutableListOf(
-      FragmentationFilterConfiguration(index = 0, count = 10)
+      FragmentationFilter(index = 0, count = 10)
     )
   }
 }
@@ -1201,7 +1195,6 @@ marathon {
 {% endtab %} {% endtabs %}
 
 If you want to dynamically pass the index of the test run you can use yaml envvar interpolation, e.g.:
-
 ```yaml
 filteringConfiguration:
   allowlist:
@@ -1216,8 +1209,7 @@ and then execute the testing as following:
 $ MARATHON_FRAGMENT_INDEX=0 marathon
 ```
 
-To pass the fragment index in gradle refer to
-the [Gradle's dynamic project properties](https://docs.gradle.org/current/javadoc/org/gradle/api/Project.html#properties)
+To pass the fragment index in gradle refer to the [Gradle's dynamic project properties](https://docs.gradle.org/current/javadoc/org/gradle/api/Project.html#properties)
 
 ## Test class regular expression
 
@@ -1296,7 +1288,7 @@ isCodeCoverageEnabled: true
 
 ```kotlin
 marathon {
-  codeCoverageEnabled = true
+  isCodeCoverageEnabled = true
 }
 ```
 
@@ -1529,7 +1521,7 @@ screenRecordingPolicy: "ON_ANY"
 
 ```kotlin
 marathon {
-  screenRecordingPolicy = ScreenRecordingPolicy.ON_ANY
+  screenRecordingPolicy = com.malinskiy.marathon.execution.policy.ScreenRecordingPolicy.ON_ANY
 }
 ```
 
@@ -1537,7 +1529,7 @@ marathon {
 
 ```kotlin
 marathon {
-  screenRecordingPolicy = ScreenRecordingPolicy.ON_ANY
+  screenRecordingPolicy = com.malinskiy.marathon.execution.policy.ScreenRecordingPolicy.ON_ANY
 }
 ```
 

@@ -6,7 +6,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     id("org.jetbrains.dokka")
     id("org.junit.platform.gradle.plugin")
-    id("com.github.gmazzo.buildconfig") version "3.0.3"
+    id("de.fuerstenau.buildconfig") version "1.1.8"
 }
 
 val enableJDB = false
@@ -36,7 +36,7 @@ distributions {
 
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
-    kotlinOptions.apiVersion = "1.5"
+    kotlinOptions.apiVersion = "1.4"
 }
 
 dependencies {
@@ -52,14 +52,23 @@ dependencies {
     implementation(Libraries.kotlinReflect)
     implementation(Libraries.logbackClassic)
     implementation(Libraries.argParser)
+    implementation(Libraries.jacksonDatabind)
+    implementation(Libraries.jacksonAnnotations)
+    implementation(Libraries.jacksonKotlin)
+    implementation(Libraries.jacksonYaml)
+    implementation(Libraries.jacksonJSR310)
+    implementation(Libraries.apacheCommonsText)
+    testImplementation(TestLibraries.kluent)
+    testImplementation(TestLibraries.mockitoKotlin)
+    testImplementation(TestLibraries.junit5)
     testRuntimeOnly(TestLibraries.jupiterEngine)
 }
 
 Deployment.initialize(project)
 
 buildConfig {
-    buildConfigField("String", "NAME", "\"${project.name}\"")
-    buildConfigField("String", "VERSION", provider { "\"${Versions.marathon}\"" })
+    appName = project.name
+    version = Versions.marathon
 }
 
 sourceSets["main"].java {
@@ -86,12 +95,3 @@ junitPlatform {
 
 tasks.getByName("junitPlatformTest").outputs.upToDateWhen { false }
 tasks.getByName("test").outputs.upToDateWhen { false }
-
-/**
- * Classpath is too long for commandline
- */
-tasks.startScripts {
-    doLast {
-        windowsScript.writeText(windowsScript.readText().replace("set CLASSPATH=.*".toRegex(), "set CLASSPATH=.;%APP_HOME%/lib/*"))
-    }
-}

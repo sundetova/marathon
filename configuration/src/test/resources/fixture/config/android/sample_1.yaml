@@ -1,7 +1,0 @@
-name: "sample-app tests"
-outputDir: "./marathon"
-vendorConfiguration:
-  type: "Android"
-  testApplicationApk: "foo/bar"
-  serialStrategy: "AUTOMATIC"
-  waitForDevicesTimeoutMillis: 15000

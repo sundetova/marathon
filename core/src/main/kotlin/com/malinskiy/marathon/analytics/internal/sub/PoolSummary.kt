@@ -7,7 +7,6 @@ import com.malinskiy.marathon.execution.TestResult
 data class PoolSummary(
     val poolId: DevicePoolId,
     val tests: List<TestResult>,
-    val retries: Map<TestResult, List<TestEvent>>,
     val passed: Set<String>,
     val ignored: Set<String>,
     val failed: Set<String>,

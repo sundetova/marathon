@@ -7,17 +7,14 @@ order: 2
 ---
 
 # Choosing the distribution
+By default everyone should try using CLI first. Gradle plugin is only applicable to Android project. However there are some caveats to using it, e.g. incompatible gradle versions between the plugin and your project, incompatible libraries which in the end require you to change gradle version such as Kotlin DSL plugin or Coroutines.
 
-By default, everyone should try using CLI first. Gradle plugin is only applicable to Android project.
+CLI provides other benefits such as ease of having multiple configurations which you will have to implement through your gradle code otherwise. If you upgrade your build setup you're gonna need to check if gradle plugin still works, but you don't depend on your build system using CLI.
 
-If you're using any version before 0.7.0, there were some caveats to using the gradle plugin, e.g. incompatible gradle versions between the
-plugin and your project, incompatible libraries which in the end required changes to gradle configuration such as Kotlin DSL plugin or
-Coroutines. This is not the case anymore.
+In the end CLI is a much more stable and concise choice.
 
 ## CLI
-
-Grab the latest release from [GitHub Releases][1] page. Extract the archive into your apps folder and add the binary to your path using
-local terminal session or using your profile file (.bashrc or equivalent), e.g.
+Grab the latest release from [GitHub Releases][1] page. Extract the archive into your apps folder and add the binary to your path using local terminal session or using your profile file (.bashrc or equivalent), e.g.
 
 ```bash
 unzip -d $DESTINATION marathon-X.X.X.zip
@@ -25,7 +22,6 @@ export PATH=$PATH:$DESTINATION/marathon-X.X.X/bin
 ```
 
 ## MacOS
-
 Grab the latest release with [homebrew][5]:
 
 ```bash
@@ -34,7 +30,6 @@ brew install malinskiy/tap/marathon
 ```
 
 ## Gradle
-
 Marathon gradle plugin is published to [MavenCentral][2]. Then apply the plugin
 
 {% tabs gradle %} {% tab gradle .gradle %}

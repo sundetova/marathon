@@ -3,8 +3,6 @@ package com.malinskiy.marathon.android
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
-import com.malinskiy.marathon.config.vendor.android.RecorderType
-import com.malinskiy.marathon.config.vendor.android.ScreenRecordConfiguration
 import com.malinskiy.marathon.device.DeviceFeature
 import org.junit.jupiter.api.Test
 
@@ -21,7 +19,7 @@ class RecorderTypeSelectorTest {
         assertThat(
             RecorderTypeSelector.selectRecorderType(
                 listOf(DeviceFeature.SCREENSHOT, DeviceFeature.VIDEO),
-                ScreenRecordConfiguration(preferableRecorderType = RecorderType.SCREENSHOT)
+                ScreenRecordConfiguration(preferableRecorderType = DeviceFeature.SCREENSHOT)
             )
         ).isEqualTo(DeviceFeature.SCREENSHOT)
     }
@@ -31,7 +29,7 @@ class RecorderTypeSelectorTest {
         assertThat(
             RecorderTypeSelector.selectRecorderType(
                 listOf(DeviceFeature.SCREENSHOT, DeviceFeature.VIDEO),
-                ScreenRecordConfiguration(preferableRecorderType = RecorderType.VIDEO)
+                ScreenRecordConfiguration(preferableRecorderType = DeviceFeature.VIDEO)
             )
         ).isEqualTo(DeviceFeature.VIDEO)
     }
@@ -41,7 +39,7 @@ class RecorderTypeSelectorTest {
         assertThat(
             RecorderTypeSelector.selectRecorderType(
                 listOf(DeviceFeature.SCREENSHOT),
-                ScreenRecordConfiguration(preferableRecorderType = RecorderType.VIDEO)
+                ScreenRecordConfiguration(preferableRecorderType = DeviceFeature.VIDEO)
             )
         ).isEqualTo(DeviceFeature.SCREENSHOT)
     }

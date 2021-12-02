@@ -13,11 +13,11 @@ import com.malinskiy.marathon.android.adam.TestConfigurationFactory
 import com.malinskiy.marathon.android.adam.TestDeviceFactory
 import com.malinskiy.marathon.android.adam.boot
 import com.malinskiy.marathon.android.adam.features
+import com.malinskiy.marathon.android.configuration.AggregationMode
+import com.malinskiy.marathon.android.configuration.FileSyncConfiguration
+import com.malinskiy.marathon.android.configuration.FileSyncEntry
 import com.malinskiy.marathon.android.model.TestIdentifier
 import com.malinskiy.marathon.android.model.TestRunResultsAccumulatorTest
-import com.malinskiy.marathon.config.vendor.android.AggregationMode
-import com.malinskiy.marathon.config.vendor.android.FileSyncConfiguration
-import com.malinskiy.marathon.config.vendor.android.FileSyncEntry
 import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.device.toDeviceInfo
 import com.malinskiy.marathon.execution.Attachment
@@ -584,14 +584,7 @@ class TestRunResultsListenerTest {
             )
             assertThat(result.failed).isEmpty()
             assertThat(result.uncompleted).isEmpty()
-
-            /**
-             * Due to the need for consistency first parameterized test does not end up being reported to remove the need to remove the
-             * parent test
-             */
-            verify(progressReporter, times(0)).addTestDiscoveredDuringRuntime(poolId, id0.toTest())
-            verify(progressReporter, times(1)).addTestDiscoveredDuringRuntime(poolId, id1.toTest())
-            verify(progressReporter, times(1)).addTestDiscoveredDuringRuntime(poolId, id2.toTest())
+            verify(progressReporter, times(2)).addTests(poolId, 1)
         }
     }
 

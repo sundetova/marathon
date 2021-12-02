@@ -1,14 +1,13 @@
 package com.malinskiy.marathon.ios
 
-import com.malinskiy.marathon.config.Configuration
-import com.malinskiy.marathon.config.vendor.VendorConfiguration
+import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.extension.relativePathTo
 import com.malinskiy.marathon.log.MarathonLogging
 import com.nhaarman.mockitokotlin2.mock
 import com.nhaarman.mockitokotlin2.reset
 import com.nhaarman.mockitokotlin2.whenever
-import org.amshove.kluent.shouldBeEqualTo
-import org.amshove.kluent.shouldNotBeEqualTo
+import org.amshove.kluent.shouldEqual
+import org.amshove.kluent.shouldNotEqual
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -36,10 +35,30 @@ class DerivedDataManagerTest {
         File(javaClass.classLoader.getResource("sample-xcworkspace/derived-data").file)
     private val xctestrunPath =
         File(javaClass.classLoader.getResource("sample-xcworkspace/derived-data/Build/Products/UITesting_iphonesimulator11.2-x86_64.xctestrun").file)
-    private val configuration = Configuration.Builder(
+    private val configuration = Configuration(
         name = "",
         outputDir = File(""),
-        vendorConfiguration = VendorConfiguration.IOSConfiguration(
+        analyticsConfiguration = null,
+        poolingStrategy = null,
+        shardingStrategy = null,
+        sortingStrategy = null,
+        batchingStrategy = null,
+        flakinessStrategy = null,
+        retryStrategy = null,
+        filteringConfiguration = null,
+        ignoreFailures = null,
+        isCodeCoverageEnabled = null,
+        fallbackToScreenshots = null,
+        strictMode = null,
+        uncompletedTestRetryQuota = null,
+        testClassRegexes = null,
+        includeSerialRegexes = null,
+        excludeSerialRegexes = null,
+        testBatchTimeoutMillis = null,
+        testOutputTimeoutMillis = null,
+        debug = false,
+        screenRecordingPolicy = null,
+        vendorConfiguration = IOSConfiguration(
             derivedDataDir = derivedDataDir,
             xctestrunPath = xctestrunPath,
             remoteUsername = "root",
@@ -49,11 +68,10 @@ class DerivedDataManagerTest {
             sourceRoot = sourceRoot,
             debugSsh = false,
             alwaysEraseSimulators = true
-        )
-    ).apply {
-        debug = false
-        analyticsTracking = false
-    }.build()
+        ),
+        analyticsTracking = false,
+        deviceInitializationTimeoutMillis = null
+    )
 
     @BeforeEach
     fun `setup mocks`() {
@@ -75,7 +93,7 @@ class DerivedDataManagerTest {
 
         containerHost = container.containerIpAddress
         sshPort = container.getMappedPort(22)
-        sshPort shouldNotBeEqualTo 0
+        sshPort shouldNotEqual 0
     }
 
     @AfterEach
@@ -105,7 +123,7 @@ class DerivedDataManagerTest {
     fun `should determine products location`() {
         val manager = DerivedDataManager(configuration = configuration)
 
-        manager.productsDir shouldBeEqualTo derivedDataDir.resolve("Build/Products/")
+        manager.productsDir shouldEqual derivedDataDir.resolve("Build/Products/")
     }
 
     @Test
@@ -139,7 +157,7 @@ class DerivedDataManagerTest {
         val expectedUploadFiles =
             productsDir.walkTopDown().map { it.relativePathTo(productsDir) }.toSet()
 
-        uploadResults shouldBeEqualTo expectedUploadFiles
+        uploadResults shouldEqual expectedUploadFiles
 
         // Download
         val tempDir = createTempDir()
@@ -156,7 +174,7 @@ class DerivedDataManagerTest {
             productsDir.walkTopDown().map { it.relativePathTo(productsDir) }.toSet()
 
         // Compare
-        tempFiles shouldBeEqualTo expectedDownloadFiles
+        tempFiles shouldEqual expectedDownloadFiles
 
         tempDir.deleteRecursively()
     }

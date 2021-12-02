@@ -4,17 +4,12 @@ import com.google.gson.Gson
 import com.malinskiy.marathon.analytics.internal.sub.ExecutionReport
 import com.malinskiy.marathon.analytics.internal.sub.PoolSummary
 import com.malinskiy.marathon.analytics.internal.sub.Summary
-import com.malinskiy.marathon.config.Configuration
 import com.malinskiy.marathon.device.DeviceFeature
 import com.malinskiy.marathon.device.DeviceInfo
-import com.malinskiy.marathon.device.DevicePoolId
+import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.execution.TestResult
 import com.malinskiy.marathon.execution.TestStatus
-import com.malinskiy.marathon.extension.escape
 import com.malinskiy.marathon.extension.relativePathTo
-import com.malinskiy.marathon.io.FileManager
-import com.malinskiy.marathon.io.FileType
-import com.malinskiy.marathon.io.FolderType
 import com.malinskiy.marathon.report.HtmlDevice
 import com.malinskiy.marathon.report.HtmlFullTest
 import com.malinskiy.marathon.report.HtmlIndex
@@ -33,7 +28,6 @@ import kotlin.math.roundToLong
 
 class HtmlSummaryReporter(
     private val gson: Gson,
-    private val fileManager: FileManager,
     private val rootOutput: File,
     private val configuration: Configuration
 ) : Reporter {
@@ -48,11 +42,13 @@ class HtmlSummaryReporter(
         val summary = executionReport.summary
         if (summary.pools.isEmpty()) return
 
+        val outputDir = File(rootOutput, "/html")
+        rootOutput.mkdirs()
+        outputDir.mkdirs()
+
         val htmlIndexJson = gson.toJson(summary.toHtmlIndex())
 
         val formattedDate = SimpleDateFormat("HH:mm:ss z, MMM d yyyy").apply { timeZone = TimeZone.getTimeZone("UTC") }.format(Date())
-
-        val outputDir = fileManager.createFolder(FolderType.HTML)
 
         val appJs = File(outputDir, "app.min.js")
         inputStreamFromResources("html-report/app.min.js").copyTo(appJs.outputStream())
@@ -94,7 +90,7 @@ class HtmlSummaryReporter(
                     .replace("\${date}", formattedDate)
             )
 
-            pool.tests.map { it to File(File(poolsDir, pool.poolId.name), it.device.safeSerialNumber).apply { mkdirs() } }
+            pool.tests.map { it to File(File(poolsDir, pool.poolId.name), it.device.serialNumber).apply { mkdirs() } }
                 .map { (test, testDir) ->
                     Triple(
                         test,
@@ -104,7 +100,7 @@ class HtmlSummaryReporter(
                 }
                 .forEach { (test, htmlTest, testDir) ->
                     val testJson = gson.toJson(htmlTest)
-                    val testHtmlFile = File(testDir, "${htmlTest.id.escape().safePathLength()}.html")
+                    val testHtmlFile = File(testDir, "${htmlTest.id}.html")
 
                     testHtmlFile.writeText(
                         indexHtml
@@ -119,7 +115,7 @@ class HtmlSummaryReporter(
 
                     val testLogDetails = toHtmlTestLogDetails(pool.poolId.name, htmlTest)
                     val testLogJson = gson.toJson(testLogDetails)
-                    val testLogHtmlFile = File(logDir, "${htmlTest.id.escape().safePathLength()}.html")
+                    val testLogHtmlFile = File(logDir, "${htmlTest.id}.html")
 
                     testLogHtmlFile.writeText(
                         indexHtml
@@ -132,6 +128,7 @@ class HtmlSummaryReporter(
         }
     }
 
+    fun inputStreamFromResources(path: String): InputStream = HtmlPoolSummary::class.java.classLoader.getResourceAsStream(path)
 
     fun generateLogcatHtml(logcatOutput: String): String = when (logcatOutput.isNotEmpty()) {
         false -> ""
@@ -139,8 +136,8 @@ class HtmlSummaryReporter(
             .lines()
             .map { line -> """<div class="log__${cssClassForLogcatLine(line)}">${StringEscapeUtils.escapeXml11(line)}</div>""" }
             .fold(StringBuilder("""<div class="content"><div class="card log">""")) { stringBuilder, line ->
-                stringBuilder.appendLine(line)
-            }.appendLine("""</div></div>""").toString()
+                stringBuilder.appendln(line)
+            }.appendln("""</div></div>""").toString()
     }
 
     fun cssClassForLogcatLine(logcatLine: String): String {
@@ -160,50 +157,46 @@ class HtmlSummaryReporter(
     fun DeviceInfo.toHtmlDevice() = HtmlDevice(
         apiLevel = operatingSystem.version,
         isTablet = false,
-        serial = safeSerialNumber,
+        serial = serialNumber,
         modelName = model
     )
 
     private fun TestResult.receiveScreenshotPath(poolId: String, batchId: String): String {
-        val screenshotRelativePath =
-            fileManager.createFile(FileType.SCREENSHOT, DevicePoolId(poolId), device, test, batchId).relativePathTo(rootOutput)
+        val screenshotRelativePath = "/screenshot/$poolId/${device.serialNumber}/${test.pkg}.${test.clazz}#${test.method}-$batchId.gif"
         val screenshotFullPath = File(rootOutput, screenshotRelativePath)
         return when (device.deviceFeatures.contains(DeviceFeature.SCREENSHOT) && screenshotFullPath.exists()) {
-            true -> "../../../../${screenshotRelativePath.replace("#", "%23")}"
+            true -> "../../../..${screenshotRelativePath.replace("#", "%23")}"
             false -> ""
         }
     }
 
     private fun TestResult.receiveVideoPath(poolId: String, batchId: String): String {
-        val videoRelativePath =
-            fileManager.createFile(FileType.VIDEO, DevicePoolId(poolId), device, test, batchId).relativePathTo(rootOutput)
+        val videoRelativePath = "/video/$poolId/${device.serialNumber}/${test.pkg}.${test.clazz}#${test.method}-$batchId.mp4"
         val videoFullPath = File(rootOutput, videoRelativePath)
         return when (device.deviceFeatures.contains(DeviceFeature.VIDEO) && videoFullPath.exists()) {
-            true -> "../../../../${videoRelativePath.replace("#", "%23")}"
+            true -> "../../../..${videoRelativePath.replace("#", "%23")}"
             false -> ""
         }
     }
 
     private fun TestResult.receiveLogPath(poolId: String, batchId: String): String {
-        val logRelativePath = fileManager.createFile(FileType.LOG, DevicePoolId(poolId), device, test, batchId).relativePathTo(rootOutput)
+        val logRelativePath = "/logs/$poolId/${device.serialNumber}/${test.pkg}.${test.clazz}#${test.method}-$batchId.log"
         val logFullPath = File(rootOutput, logRelativePath)
-        return if (logFullPath.exists()) {
-            "../../../../${logRelativePath.replace("#", "%23")}"
-        } else {
-            ""
+        return when (device.deviceFeatures.contains(DeviceFeature.VIDEO) && logFullPath.exists()) {
+            true -> "../../../..${logRelativePath.replace("#", "%23")}"
+            false -> ""
         }
     }
 
     fun TestResult.toHtmlFullTest(poolId: String, batchId: String) = HtmlFullTest(
         poolId = poolId,
         id = "${test.pkg}.${test.clazz}.${test.method}",
-        filename = "${test.pkg}.${test.clazz}.${test.method}".escape().safePathLength() + ".html",
         packageName = test.pkg,
         className = test.clazz,
         name = test.method,
         durationMillis = durationMillis(),
         status = status.toHtmlStatus(),
-        deviceId = this.device.safeSerialNumber,
+        deviceId = this.device.serialNumber,
         diagnosticVideo = device.deviceFeatures.contains(DeviceFeature.VIDEO),
         diagnosticScreenshots = device.deviceFeatures.contains(DeviceFeature.SCREENSHOT),
         stacktrace = stacktrace,
@@ -232,10 +225,10 @@ class HtmlSummaryReporter(
 
     fun Summary.toHtmlIndex() = HtmlIndex(
         title = configuration.name,
-        totalFailed = pools.sumOf { it.failed.size },
-        totalIgnored = pools.sumOf { it.ignored.size },
-        totalPassed = pools.sumOf { it.passed.size },
-        totalFlaky = pools.sumOf { it.flaky },
+        totalFailed = pools.sumBy { it.failed.size },
+        totalIgnored = pools.sumBy { it.ignored.size },
+        totalPassed = pools.sumBy { it.passed.size },
+        totalFlaky = pools.sumBy { it.flaky },
         totalDuration = totalDuration(pools),
         averageDuration = averageDuration(pools),
         maxDuration = maxDuration(pools),
@@ -244,29 +237,28 @@ class HtmlSummaryReporter(
     )
 
     fun totalDuration(poolSummaries: List<PoolSummary>): Long {
-        return poolSummaries.flatMap { it.tests }.sumOf { it.durationMillis().toDouble() * 1.0 }.toLong()
+        return poolSummaries.flatMap { it.tests }.sumByDouble { it.durationMillis() * 1.0 }.toLong()
     }
 
     fun averageDuration(poolSummaries: List<PoolSummary>) = durationPerPool(poolSummaries).average().roundToLong()
 
-    fun minDuration(poolSummaries: List<PoolSummary>) = durationPerPool(poolSummaries).minOrNull() ?: 0
+    fun minDuration(poolSummaries: List<PoolSummary>) = durationPerPool(poolSummaries).min() ?: 0
 
     private fun durationPerPool(poolSummaries: List<PoolSummary>) =
         poolSummaries.map { it.tests }
-            .map { it.sumOf { it.durationMillis().toDouble() * 1.0 } }.map { it.toLong() }
+            .map { it.sumByDouble { it.durationMillis() * 1.0 } }.map { it.toLong() }
 
-    fun maxDuration(poolSummaries: List<PoolSummary>) = durationPerPool(poolSummaries).maxOrNull() ?: 0
+    fun maxDuration(poolSummaries: List<PoolSummary>) = durationPerPool(poolSummaries).max() ?: 0
 
 
     fun TestResult.toHtmlShortSuite() = HtmlShortTest(
         id = "${test.pkg}.${test.clazz}.${test.method}",
-        fileName = "${test.pkg}.${test.clazz}.${test.method}".escape().safePathLength() + ".html",
         packageName = test.pkg,
         className = test.clazz,
         name = test.method,
         durationMillis = durationMillis(),
         status = status.toHtmlStatus(),
-        deviceId = this.device.safeSerialNumber
+        deviceId = this.device.serialNumber
     )
 
     fun toHtmlTestLogDetails(
@@ -280,12 +272,3 @@ class HtmlSummaryReporter(
         logPath = "../${fullTest.logFile}"
     )
 }
-
-private fun String.safePathLength(): String {
-    return if (length >= 128) {
-        substring(0 until 128)
-    } else this
-}
-
-private fun inputStreamFromResources(path: String): InputStream =
-    HtmlSummaryReporter::class.java.classLoader.getResourceAsStream(path)

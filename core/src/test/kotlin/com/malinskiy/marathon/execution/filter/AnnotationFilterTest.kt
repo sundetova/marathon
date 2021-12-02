@@ -1,9 +1,8 @@
 package com.malinskiy.marathon.execution.filter
 
-import com.malinskiy.marathon.config.TestFilterConfiguration
-import com.malinskiy.marathon.extension.toTestFilter
+import com.malinskiy.marathon.execution.AnnotationFilter
 import com.malinskiy.marathon.test.MetaProperty
-import org.amshove.kluent.shouldBeEqualTo
+import org.amshove.kluent.shouldEqual
 import org.junit.jupiter.api.Test
 import com.malinskiy.marathon.test.Test as MarathonTest
 
@@ -11,17 +10,17 @@ class AnnotationFilterTest {
     val test1 = stubTest("com.example.AnnotationOne", "com.sample.AnnotationTwo")
     val test2 = stubTest("com.example.AnnotationOne")
     private val test3 = stubTest(*arrayOf<MetaProperty>())
-    private val filter = TestFilterConfiguration.AnnotationFilterConfiguration(regex = """com\.example.*""".toRegex()).toTestFilter()
+    private val filter = AnnotationFilter(regex = """com\.example.*""".toRegex())
     val tests = listOf(test1, test2, test3)
 
     @Test
     fun shouldFilter() {
-        filter.filter(tests) shouldBeEqualTo listOf(test1, test2)
+        filter.filter(tests) shouldEqual listOf(test1, test2)
     }
 
     @Test
     fun shouldFilterNot() {
-        filter.filterNot(tests) shouldBeEqualTo listOf(test3)
+        filter.filterNot(tests) shouldEqual listOf(test3)
     }
 }
 

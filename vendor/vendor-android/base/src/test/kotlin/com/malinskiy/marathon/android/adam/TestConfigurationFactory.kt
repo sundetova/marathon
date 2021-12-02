@@ -1,9 +1,10 @@
 package com.malinskiy.marathon.android.adam
 
-import com.malinskiy.marathon.config.Configuration
-import com.malinskiy.marathon.config.vendor.VendorConfiguration
-import com.malinskiy.marathon.config.vendor.android.AllureConfiguration
-import com.malinskiy.marathon.config.vendor.android.FileSyncConfiguration
+import com.malinskiy.marathon.android.AndroidConfiguration
+import com.malinskiy.marathon.android.adam.di.adamModule
+import com.malinskiy.marathon.android.configuration.AllureConfiguration
+import com.malinskiy.marathon.android.configuration.FileSyncConfiguration
+import com.malinskiy.marathon.execution.Configuration
 import java.io.File
 
 object TestConfigurationFactory {
@@ -14,23 +15,41 @@ object TestConfigurationFactory {
         allureConfiguration: AllureConfiguration = AllureConfiguration(),
         isCodeCoverageEnabled: Boolean = false,
     ): Configuration {
-        return Configuration.Builder(
+        return Configuration(
             name = "",
             outputDir = File(""),
-            vendorConfiguration = VendorConfiguration.AndroidConfiguration(
+            analyticsConfiguration = null,
+            poolingStrategy = null,
+            shardingStrategy = null,
+            sortingStrategy = null,
+            batchingStrategy = null,
+            flakinessStrategy = null,
+            retryStrategy = null,
+            filteringConfiguration = null,
+            ignoreFailures = null,
+            isCodeCoverageEnabled = isCodeCoverageEnabled,
+            fallbackToScreenshots = null,
+            strictMode = false,
+            uncompletedTestRetryQuota = null,
+            testClassRegexes = null,
+            includeSerialRegexes = null,
+            excludeSerialRegexes = null,
+            testBatchTimeoutMillis = null,
+            testOutputTimeoutMillis = null,
+            debug = false,
+            screenRecordingPolicy = null,
+            vendorConfiguration = AndroidConfiguration(
                 androidSdk = File(""),
                 applicationOutput = File(javaClass.classLoader.getResource("apk/app-debug.apk").file),
                 testApplicationOutput = File(javaClass.classLoader.getResource("apk/app-debug-androidTest.apk").file),
+                implementationModules = listOf(adamModule),
                 autoGrantPermission = autoGrantPermission,
                 installOptions = installOptions,
                 fileSyncConfiguration = fileSyncConfiguration,
                 allureConfiguration = allureConfiguration
-            )
-        ).apply {
-            this.isCodeCoverageEnabled = isCodeCoverageEnabled
-            strictMode = false
-            debug = false
-            analyticsTracking = false
-        }.build()
+            ),
+            analyticsTracking = false,
+            deviceInitializationTimeoutMillis = null,
+        )
     }
 }

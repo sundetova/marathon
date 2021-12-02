@@ -3,9 +3,9 @@ package com.malinskiy.marathon.execution.queue
 import com.malinskiy.marathon.actor.Actor
 import com.malinskiy.marathon.analytics.external.Analytics
 import com.malinskiy.marathon.analytics.internal.pub.Track
-import com.malinskiy.marathon.config.Configuration
 import com.malinskiy.marathon.device.DeviceInfo
 import com.malinskiy.marathon.device.DevicePoolId
+import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.execution.DevicePoolMessage
 import com.malinskiy.marathon.execution.DevicePoolMessage.FromQueue
 import com.malinskiy.marathon.execution.TestBatchResults
@@ -14,9 +14,6 @@ import com.malinskiy.marathon.execution.TestShard
 import com.malinskiy.marathon.execution.TestStatus
 import com.malinskiy.marathon.execution.bundle.TestBundleIdentifier
 import com.malinskiy.marathon.execution.progress.ProgressReporter
-import com.malinskiy.marathon.extension.toBatchingStrategy
-import com.malinskiy.marathon.extension.toRetryStrategy
-import com.malinskiy.marathon.extension.toSortingStrategy
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.test.Test
 import com.malinskiy.marathon.test.TestBatch
@@ -46,11 +43,11 @@ class QueueActor(
 
     private val logger = MarathonLogging.logger("QueueActor[$poolId]")
 
-    private val sortingStrategy = configuration.sortingStrategy.toSortingStrategy()
+    private val sorting = configuration.sortingStrategy
 
-    private val queue: Queue<Test> = PriorityQueue(sortingStrategy.process(analytics))
-    private val batchingStrategy = configuration.batchingStrategy.toBatchingStrategy()
-    private val retryStrategy = configuration.retryStrategy.toRetryStrategy()
+    private val queue: Queue<Test> = PriorityQueue<Test>(sorting.process(analytics))
+    private val batching = configuration.batchingStrategy
+    private val retry = configuration.retryStrategy
 
     private val activeBatches = mutableMapOf<String, TestBatch>()
     private val uncompletedTestsRetryCount = mutableMapOf<Test, Int>()
@@ -59,7 +56,7 @@ class QueueActor(
 
     init {
         queue.addAll(testShard.tests + testShard.flakyTests)
-        progressReporter.testCountExpectation(poolId, queue.size)
+        progressReporter.totalTests(poolId, queue.size)
     }
 
     override suspend fun receive(msg: QueueMessage) {
@@ -126,7 +123,7 @@ class QueueActor(
                 testResultReporter.testIncomplete(device, test, final = false)
             }
             returnTests(uncompleted.map { it.test })
-            progressReporter.addRetries(poolId, uncompleted.size)
+            progressReporter.addTests(poolId, uncompleted.size)
         }
     }
 
@@ -181,15 +178,15 @@ class QueueActor(
         device: DeviceInfo
     ) {
         logger.debug { "handle failed tests ${device.serialNumber}" }
-        val retryList = retryStrategy.process(poolId, failed, testShard)
+        val retryList = retry.process(poolId, failed, testShard)
 
-        progressReporter.addRetries(poolId, retryList.size)
+        progressReporter.addTests(poolId, retryList.size)
         queue.addAll(retryList.map { it.test })
         retryList.forEach {
             testResultReporter.retryTest(device, it)
         }
 
-        val (_, noRetries) = failed.partition { testResult ->
+        val (retryable, noRetries) = failed.partition { testResult ->
             retryList.map { retry -> retry.test }.contains(testResult.test)
         }
 
@@ -205,7 +202,7 @@ class QueueActor(
         //Don't separate the condition and the mutator into separate suspending blocks
         if (queue.isNotEmpty() && !activeBatches.containsKey(device.serialNumber)) {
             logger.debug { "sending next batch for device ${device.serialNumber}" }
-            val batch = batchingStrategy.process(queue, analytics, testBundleIdentifier)
+            val batch = batching.process(queue, analytics, testBundleIdentifier)
             activeBatches[device.serialNumber] = batch
             pool.send(FromQueue.ExecuteBatch(device, batch))
             return

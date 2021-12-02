@@ -1,5 +1,6 @@
 package com.malinskiy.marathon.device
 
+import com.malinskiy.marathon.vendor.VendorConfiguration
 import kotlinx.coroutines.channels.Channel
 
 interface DeviceProvider {
@@ -9,7 +10,7 @@ interface DeviceProvider {
     }
 
     val deviceInitializationTimeoutMillis: Long
-    suspend fun initialize()
+    suspend fun initialize(vendorConfiguration: VendorConfiguration)
     suspend fun terminate()
     fun subscribe(): Channel<DeviceEvent>
 }

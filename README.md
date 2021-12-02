@@ -10,7 +10,6 @@ Cross-platform test runner written for Android and iOS projects
 - **performance** using high parallelization (handling dozens of devices)
 
 ## Documentation
-
 Please check the official [documentation](https://marathonlabs.github.io/marathon/) for installation, configuration and more
 
 License

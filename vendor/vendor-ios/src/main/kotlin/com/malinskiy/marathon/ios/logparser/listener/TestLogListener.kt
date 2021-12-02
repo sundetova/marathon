@@ -11,7 +11,7 @@ class TestLogListener : TestRunListener, StreamingLogParser, TestLogCollector {
     override fun getLastLog() = buffer?.toString() ?: ""
 
     override fun onLine(line: String) {
-        buffer?.appendLine(line)
+        buffer?.appendln(line)
         lastLine = line
     }
 

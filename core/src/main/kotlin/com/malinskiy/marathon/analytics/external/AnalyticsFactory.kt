@@ -1,6 +1,6 @@
 package com.malinskiy.marathon.analytics.external
 
-import com.malinskiy.marathon.config.Configuration
+import com.malinskiy.marathon.execution.Configuration
 
 class AnalyticsFactory(configuration: Configuration) {
 

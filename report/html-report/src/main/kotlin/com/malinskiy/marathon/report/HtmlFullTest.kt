@@ -8,7 +8,6 @@ data class HtmlFullTest(
     @SerializedName("class_name") val className: String,
     @SerializedName("name") val name: String,
     @SerializedName("id") val id: String = "$packageName$className$name",
-    @SerializedName("filename") val filename: String,
     @SerializedName("duration_millis") val durationMillis: Long,
     @SerializedName("status") val status: Status,
     @SerializedName("stacktrace") val stacktrace: String?,
@@ -17,5 +16,5 @@ data class HtmlFullTest(
     @SerializedName("diagnostic_screenshots") val diagnosticScreenshots: Boolean,
     @SerializedName("screenshot") val screenshot: String,
     @SerializedName("video") val video: String,
-    @SerializedName("log_file") val logFile: String,
+    @SerializedName("log_file") val logFile: String
 )

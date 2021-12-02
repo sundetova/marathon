@@ -1,6 +1,6 @@
 package com.malinskiy.marathon.android.adam.log
 
-import java.util.Objects
+import java.util.*
 
 /**
  * Data class for message header information which gets reported by logcat.
@@ -29,16 +29,16 @@ class LogCatHeader {
         this.timestamp = timestamp
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (other !is LogCatHeader) {
+    override fun equals(`object`: Any?): Boolean {
+        if (`object` !is LogCatHeader) {
             return false
         }
-        return (this.logLevel == other.logLevel &&
-            pid == other.pid &&
-            tid == other.tid &&
-            appName == other.appName &&
-            tag == other.tag &&
-            timestamp == other.timestamp)
+        return (this.logLevel == `object`.logLevel &&
+            pid == `object`.pid &&
+            tid == `object`.tid &&
+            appName == `object`.appName &&
+            tag == `object`.tag &&
+            timestamp == `object`.timestamp)
     }
 
     override fun hashCode(): Int {

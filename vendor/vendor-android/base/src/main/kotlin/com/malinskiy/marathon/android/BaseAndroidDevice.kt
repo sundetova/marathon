@@ -2,6 +2,10 @@ package com.malinskiy.marathon.android
 
 import com.android.sdklib.AndroidVersion
 import com.malinskiy.marathon.analytics.internal.pub.Track
+import com.malinskiy.marathon.android.configuration.AggregationMode
+import com.malinskiy.marathon.android.configuration.FileSyncEntry
+import com.malinskiy.marathon.android.configuration.SerialStrategy
+import com.malinskiy.marathon.android.exception.InvalidSerialConfiguration
 import com.malinskiy.marathon.android.exception.TransferException
 import com.malinskiy.marathon.android.executor.listeners.CompositeTestRunListener
 import com.malinskiy.marathon.android.executor.listeners.DebugTestRunListener
@@ -13,17 +17,13 @@ import com.malinskiy.marathon.android.executor.listeners.filesync.FileSyncTestRu
 import com.malinskiy.marathon.android.executor.listeners.screenshot.ScreenCapturerTestRunListener
 import com.malinskiy.marathon.android.executor.listeners.video.ScreenRecorderTestBatchListener
 import com.malinskiy.marathon.android.model.Rotation
-import com.malinskiy.marathon.config.Configuration
-import com.malinskiy.marathon.config.ScreenRecordingPolicy
-import com.malinskiy.marathon.config.vendor.VendorConfiguration
-import com.malinskiy.marathon.config.vendor.android.AggregationMode
-import com.malinskiy.marathon.config.vendor.android.FileSyncEntry
-import com.malinskiy.marathon.config.vendor.android.SerialStrategy
 import com.malinskiy.marathon.device.DeviceFeature
 import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.device.OperatingSystem
 import com.malinskiy.marathon.exceptions.DeviceSetupException
+import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.execution.TestBatchResults
+import com.malinskiy.marathon.execution.policy.ScreenRecordingPolicy
 import com.malinskiy.marathon.execution.progress.ProgressReporter
 import com.malinskiy.marathon.extension.withTimeoutOrNull
 import com.malinskiy.marathon.io.FileManager
@@ -43,7 +43,7 @@ abstract class BaseAndroidDevice(
     val adbSerial: String,
     protected val serialStrategy: SerialStrategy,
     protected val configuration: Configuration,
-    protected val androidConfiguration: VendorConfiguration.AndroidConfiguration,
+    protected val androidConfiguration: AndroidConfiguration,
     protected val track: Track,
     protected val timer: Timer
 ) : AndroidDevice, CoroutineScope {
@@ -137,13 +137,13 @@ abstract class BaseAndroidDevice(
     /**
      * We can only do this after the device finished booting
      */
-    protected open suspend fun detectRealSerialNumber(): String {
+    private suspend fun detectRealSerialNumber(): String {
         val marathonSerialProp: String = getProperty("marathon.serialno") ?: ""
         val serialProp: String = getProperty("ro.boot.serialno") ?: ""
         val hostName: String = getProperty("net.hostname") ?: ""
         val serialNumber = adbSerial
 
-        return when (serialStrategy) {
+        val result = when (serialStrategy) {
             SerialStrategy.AUTOMATIC -> {
                 marathonSerialProp.takeIf { it.isNotEmpty() }
                     ?: serialNumber.takeIf { it.isNotEmpty() }
@@ -155,6 +155,10 @@ abstract class BaseAndroidDevice(
             SerialStrategy.BOOT_PROPERTY -> serialProp
             SerialStrategy.HOSTNAME -> hostName
             SerialStrategy.DDMS -> serialNumber
+        }
+
+        return result.apply {
+            if (this == null) throw InvalidSerialConfiguration(serialStrategy)
         }
     }
 
@@ -222,14 +226,6 @@ abstract class BaseAndroidDevice(
         }
 
         return booted
-    }
-    
-    fun isLocalEmulator() = adbSerial.startsWith("emulator-")
-
-    protected suspend fun AndroidDevice.isEmulator(): Boolean = when {
-        getProperty("ro.kernel.qemu")?.isNotBlank() ?: false -> true
-        getProperty("service.adb.transport") == "goldfish" -> true
-        else -> false
     }
 
     protected fun createExecutionListeners(

@@ -1,18 +1,22 @@
-package com.malinskiy.marathon.execution.filter
+package com.malinskiy.marathon.execution
 
-import com.malinskiy.marathon.config.TestFilterConfiguration
+import com.fasterxml.jackson.annotation.JsonProperty
+import java.io.File
 
-class AnnotationFilter(cnf: TestFilterConfiguration.AnnotationFilterConfiguration) :
-    SingleValueTestFilter(cnf.regex, cnf.values, cnf.file, { test, values ->
-        when {
-            regex != null -> {
-                test.metaProperties.map { it.name }.any(regex::matches)
-            }
-            values != null -> {
-                test.metaProperties.map { it.name }.intersect(values).isNotEmpty()
-            }
-            else -> {
-                true
-            }
+class AnnotationFilter(
+    @JsonProperty("regex") regex: Regex? = null,
+    @JsonProperty("values") values: List<String>? = null,
+    @JsonProperty("file") file: File? = null,
+) : SingleValueTestFilter(regex, values, file, { test, values ->
+    when {
+        regex != null -> {
+            test.metaProperties.map { it.name }.any(regex::matches)
         }
-    })
+        values != null -> {
+            test.metaProperties.map { it.name }.intersect(values).isNotEmpty()
+        }
+        else -> {
+            true
+        }
+    }
+})

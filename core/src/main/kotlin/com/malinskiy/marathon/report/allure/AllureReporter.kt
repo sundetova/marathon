@@ -3,8 +3,8 @@ package com.malinskiy.marathon.report.allure
 import com.github.automatedowl.tools.AllureEnvironmentWriter.allureEnvironmentWriter
 import com.google.common.collect.ImmutableMap
 import com.malinskiy.marathon.analytics.internal.sub.ExecutionReport
-import com.malinskiy.marathon.config.Configuration
 import com.malinskiy.marathon.device.DeviceInfo
+import com.malinskiy.marathon.execution.Configuration
 import com.malinskiy.marathon.execution.TestResult
 import com.malinskiy.marathon.execution.TestStatus
 import com.malinskiy.marathon.report.Reporter
@@ -18,8 +18,7 @@ import io.qameta.allure.model.Status
 import io.qameta.allure.model.StatusDetails
 import io.qameta.allure.util.ResultsUtils
 import java.io.File
-import java.util.Locale
-import java.util.UUID
+import java.util.*
 import io.qameta.allure.Description as JavaDescription
 import io.qameta.allure.Epic as JavaEpic
 import io.qameta.allure.Feature as JavaFeature
@@ -77,8 +76,7 @@ class AllureReporter(val configuration: Configuration, private val outputDirecto
 
         val allureAttachments: List<Attachment> = testResult.attachments.map {
             Attachment()
-                .setName(it.type.name.lowercase(Locale.ENGLISH)
-                             .replaceFirstChar { cher -> if (cher.isLowerCase()) cher.titlecase(Locale.ENGLISH) else cher.toString() })
+                .setName(it.type.name.toLowerCase().capitalize())
                 .setSource(it.file.absolutePath)
                 .setType(it.type.toMimeType())
         }
@@ -91,15 +89,13 @@ class AllureReporter(val configuration: Configuration, private val outputDirecto
             .setStart(testResult.startTime)
             .setStop(testResult.endTime)
             .setAttachments(allureAttachments)
-            .setParameters(emptyList())
+            .setParameters()
             .setLabels(
-                mutableListOf(
-                    ResultsUtils.createHostLabel().setValue(device.serialNumber),
-                    ResultsUtils.createPackageLabel(test.pkg),
-                    ResultsUtils.createTestClassLabel(test.clazz),
-                    ResultsUtils.createTestMethodLabel(test.method),
-                    ResultsUtils.createSuiteLabel(suite)
-                )
+                ResultsUtils.createHostLabel().setValue(device.serialNumber),
+                ResultsUtils.createPackageLabel(test.pkg),
+                ResultsUtils.createTestClassLabel(test.clazz),
+                ResultsUtils.createTestMethodLabel(test.method),
+                ResultsUtils.createSuiteLabel(suite)
             )
 
         testResult.stacktrace?.let {
