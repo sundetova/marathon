@@ -41,6 +41,7 @@ open class Wrapper {
     open var annotationFilter: ArrayList<String>? = null
     open var annotationDataFilter: ArrayList<String>? = null
     open var simpleClassnameFilterFromFile: ArrayList<String>? = null
+    open var allureTestFilter: Boolean = false
 }
 
 fun Wrapper.toList(): List<TestFilterConfiguration> {
@@ -71,6 +72,9 @@ fun Wrapper.toList(): List<TestFilterConfiguration> {
         TestFilterConfiguration.AnnotationDataFilterConfiguration(currentData.first().toRegex(), currentData[1].toRegex())
     }?.let {
         mutableList.addAll(it)
+    }
+    if (allureTestFilter) {
+        mutableList.add(TestFilterConfiguration.AllureFilterConfiguration)
     }
     return mutableList
 }

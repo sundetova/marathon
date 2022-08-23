@@ -30,6 +30,7 @@ data class FilteringConfiguration(
     JsonSubTypes.Type(value = TestFilterConfiguration.SimpleClassnameFilterFromFile::class, name = "simple-test-name-from-file"),
     JsonSubTypes.Type(value = TestFilterConfiguration.TestMethodFilterConfiguration::class, name = "method"),
     JsonSubTypes.Type(value = TestFilterConfiguration.TestPackageFilterConfiguration::class, name = "package"),
+    JsonSubTypes.Type(value = TestFilterConfiguration.AllureFilterConfiguration::class, name = "allure"),
 )
 sealed class TestFilterConfiguration {
     abstract fun validate()
@@ -315,5 +316,18 @@ sealed class TestFilterConfiguration {
         }
 
         override fun hashCode(): Int = filters.hashCode() + op.hashCode()
+    }
+
+    object AllureFilterConfiguration : TestFilterConfiguration() {
+        override fun validate() {
+        }
+
+        override fun equals(other: Any?): Boolean {
+            return super.equals(other)
+        }
+
+        override fun hashCode(): Int {
+            return super.hashCode()
+        }
     }
 }

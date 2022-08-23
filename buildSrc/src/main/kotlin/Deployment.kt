@@ -25,7 +25,7 @@ object Deployment {
         get() = System.getenv("GH_MAVEN_USERNAME")
     val githubPassword: String
         get() = System.getenv("GH_MAVEN_PASSWORD")
-    var releaseMode: String? = null
+    var releaseMode: String = "SNAPSHOT"
     var versionSuffix: String? = null
     var deployUrl: String? = null
 
@@ -44,7 +44,7 @@ object Deployment {
             else -> "-SNAPSHOT"
         }
 
-        Deployment.releaseMode = releaseMode
+        Deployment.releaseMode = releaseMode ?: "SNAPSHOT"
         Deployment.versionSuffix = versionSuffix
         Deployment.deployUrl = when (releaseMode) {
             "RELEASE" -> Deployment.releaseDeployUrl
@@ -76,7 +76,11 @@ object Deployment {
             publications {
                 create(DEFAULT_PUBLICATION_NAME, MavenPublication::class.java) {
                     Deployment.customizePom(project, pom)
-                    from(project.components["java"])
+                    if(project.components.names.contains("shadow")) {
+                        from(project.components["shadow"])
+                    } else {
+                        from(project.components["java"])
+                    }
                     artifact(sourcesJar)
                     artifact(javadocJar)
                 }

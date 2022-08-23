@@ -1,20 +1,16 @@
 plugins {
     id("com.android.library")
     id("kotlin-android")
-    id("marathon") version "0.7.0-SNAPSHOT"
+    id("marathon") version "0.7.2-SNAPSHOT"
 }
 
 android {
-    buildToolsVersion("30.0.2")
-    compileSdkVersion(29)
+    buildToolsVersion = "30.0.3"
+    compileSdk = 30
 
     defaultConfig {
-        minSdkVersion(16)
-        targetSdkVersion(29)
-
-        versionCode = 1
-        versionName = "1.0"
-
+        minSdk = 16
+        targetSdk = 30
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

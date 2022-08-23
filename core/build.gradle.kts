@@ -8,7 +8,7 @@ plugins {
     id("org.jetbrains.dokka")
     id("org.junit.platform.gradle.plugin")
     jacoco
-    id("com.github.gmazzo.buildconfig") version "3.0.3"
+    id("com.github.gmazzo.buildconfig") version "3.1.0"
 }
 
 sourceSets {
@@ -47,6 +47,7 @@ dependencies {
     implementation(Libraries.allure)
     implementation(Libraries.allureKotlinCommons)
     implementation(Libraries.allureEnvironment)
+    implementation(Libraries.allureTestFilter)
 
     implementation(project(":analytics:usage"))
     implementation(Libraries.gson)
@@ -57,6 +58,7 @@ dependencies {
     implementation(Libraries.kotlinLogging)
     implementation(Libraries.logbackClassic)
     implementation(Libraries.influxDbClient)
+    implementation(Libraries.influxDb2Client)
     api(Libraries.koin)
     api(Libraries.bugsnag)
     testImplementation(project(":vendor:vendor-test"))

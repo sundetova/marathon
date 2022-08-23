@@ -8,6 +8,7 @@ import com.malinskiy.marathon.config.strategy.RetryStrategyConfiguration
 import com.malinskiy.marathon.config.strategy.ShardingStrategyConfiguration
 import com.malinskiy.marathon.config.strategy.SortingStrategyConfiguration
 import com.malinskiy.marathon.execution.TestFilter
+import com.malinskiy.marathon.execution.filter.AllureTestFilter
 import com.malinskiy.marathon.execution.filter.AnnotationDataFilter
 import com.malinskiy.marathon.execution.filter.AnnotationFilter
 import com.malinskiy.marathon.execution.filter.CompositionFilter
@@ -40,6 +41,7 @@ import com.malinskiy.marathon.execution.strategy.impl.sharding.CountShardingStra
 import com.malinskiy.marathon.execution.strategy.impl.sharding.ParallelShardingStrategy
 import com.malinskiy.marathon.execution.strategy.impl.sorting.ExecutionTimeSortingStrategy
 import com.malinskiy.marathon.execution.strategy.impl.sorting.NoSortingStrategy
+import com.malinskiy.marathon.execution.strategy.impl.sorting.RandomOrderSortingStrategy
 import com.malinskiy.marathon.execution.strategy.impl.sorting.SuccessRateSortingStrategy
 
 fun ShardingStrategyConfiguration.toShardingStrategy(): ShardingStrategy {
@@ -68,6 +70,7 @@ fun TestFilterConfiguration.toTestFilter(): TestFilter {
         is TestFilterConfiguration.SimpleClassnameFilterFromFile -> SimpleClassnameFilterFromFile(this)
         is TestFilterConfiguration.TestMethodFilterConfiguration -> TestMethodFilter(this)
         is TestFilterConfiguration.TestPackageFilterConfiguration -> TestPackageFilter(this)
+        is TestFilterConfiguration.AllureFilterConfiguration -> AllureTestFilter(this)
     }
 }
 
@@ -86,6 +89,7 @@ fun SortingStrategyConfiguration.toSortingStrategy(): SortingStrategy {
     return when (this) {
         is SortingStrategyConfiguration.ExecutionTimeSortingStrategyConfiguration -> ExecutionTimeSortingStrategy(this)
         SortingStrategyConfiguration.NoSortingStrategyConfiguration -> NoSortingStrategy()
+        SortingStrategyConfiguration.RandomOrderStrategyConfiguration -> RandomOrderSortingStrategy()
         is SortingStrategyConfiguration.SuccessRateSortingStrategyConfiguration -> SuccessRateSortingStrategy(this)
     }
 }
