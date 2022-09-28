@@ -63,4 +63,8 @@ class IOSDeviceProvider(
 
     private val channel: Channel<DeviceProvider.DeviceEvent> = unboundedChannel()
     override fun subscribe() = channel
+
+    override fun returnDeviceCount(): Int {
+        return 0
+    }
 }

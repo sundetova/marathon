@@ -9,9 +9,20 @@ import com.malinskiy.marathon.test.Test
 import com.malinskiy.marathon.test.TestBatch
 import java.util.Queue
 
+const val FIXED_BATCH_SIZE = 10
+
 class FixedSizeBatchingStrategy(private val cnf: BatchingStrategyConfiguration.FixedSizeBatchingStrategyConfiguration) : BatchingStrategy {
 
-    override fun process(queue: Queue<Test>, analytics: Analytics, testBundleIdentifier: TestBundleIdentifier?): TestBatch {
+    var fixedBatchSize = 0
+
+    override fun process(
+        queue: Queue<Test>,
+        analytics: Analytics,
+        testBundleIdentifier: TestBundleIdentifier?,
+        filteredTestsCount: Int,
+        deviceCount: Int
+    ): TestBatch {
+
         if (queue.size < cnf.lastMileLength && queue.isNotEmpty()) {
             //We optimize last mile by disabling batching completely.
             // This allows us to parallelize the test runs at the end instead of running batches in series
@@ -23,8 +34,14 @@ class FixedSizeBatchingStrategy(private val cnf: BatchingStrategyConfiguration.F
         val unbatchableTests = mutableListOf<Test>()
         val result = mutableSetOf<Test>()
         var testBundle: TestBundle? = null
+        val batchSize = if (filteredTestsCount / deviceCount > FIXED_BATCH_SIZE) {
+            FIXED_BATCH_SIZE
+        } else {
+            filteredTestsCount / deviceCount + 1
+        }
+        fixedBatchSize = batchSize
 
-        while (counter < cnf.size && queue.isNotEmpty()) {
+        while (counter < batchSize && queue.isNotEmpty()) {
             counter++
             val item = queue.poll()
             if (result.contains(item)) {
@@ -59,16 +76,16 @@ class FixedSizeBatchingStrategy(private val cnf: BatchingStrategyConfiguration.F
 
         other as FixedSizeBatchingStrategy
 
-        if (cnf.size != other.cnf.size) return false
+        if (fixedBatchSize != other.fixedBatchSize) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        return cnf.size
+        return fixedBatchSize
     }
 
     override fun toString(): String {
-        return "FixedSizeBatchingStrategy(size=${cnf.size}, durationMillis=${cnf.durationMillis}, percentile=${cnf.percentile}, timeLimit=${cnf.timeLimit}, lastMileLength=${cnf.lastMileLength})"
+        return "FixedSizeBatchingStrategy(size=${fixedBatchSize}, durationMillis=${cnf.durationMillis}, percentile=${cnf.percentile}, timeLimit=${cnf.timeLimit}, lastMileLength=${cnf.lastMileLength})"
     }
 }

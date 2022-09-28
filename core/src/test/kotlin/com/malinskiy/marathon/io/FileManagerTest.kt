@@ -19,7 +19,7 @@ class FileManagerTest {
     private val fileManager = FileManager(MAX_PATH, output)
 
     private companion object {
-        val MAX_PATH = 1023
+        val MAX_PATH = 255
         val poolId = DevicePoolId("testPoolId")
         val deviceInfo = DeviceInfo(
             operatingSystem = OperatingSystem("23"),

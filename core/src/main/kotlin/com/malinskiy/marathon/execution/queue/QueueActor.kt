@@ -41,7 +41,9 @@ class QueueActor(
     private val timer: Timer,
     private val testBundleIdentifier: TestBundleIdentifier?,
     poolJob: Job,
-    coroutineContext: CoroutineContext
+    coroutineContext: CoroutineContext,
+    private val filteredTestsCount: Int,
+    private val deviceCount: Int
 ) :
     Actor<QueueMessage>(parent = poolJob, context = coroutineContext) {
 
@@ -212,7 +214,7 @@ class QueueActor(
         //Don't separate the condition and the mutator into separate suspending blocks
         if (queue.isNotEmpty() && !activeBatches.containsKey(device.serialNumber)) {
             logger.debug { "sending next batch for device ${device.serialNumber}" }
-            val batch = batchingStrategy.process(queue, analytics, testBundleIdentifier)
+            val batch = batchingStrategy.process(queue, analytics, testBundleIdentifier, filteredTestsCount, deviceCount)
             activeBatches[device.serialNumber] = batch
             pool.send(FromQueue.ExecuteBatch(device, batch))
             return

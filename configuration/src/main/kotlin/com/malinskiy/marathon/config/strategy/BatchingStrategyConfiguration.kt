@@ -15,7 +15,7 @@ import java.time.Instant
 )
 sealed class BatchingStrategyConfiguration {
     data class FixedSizeBatchingStrategyConfiguration(
-        val size: Int,
+        val size: Int? = null,
         val durationMillis: Long? = null,
         val percentile: Double? = null,
         val timeLimit: Instant? = null,

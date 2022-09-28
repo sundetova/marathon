@@ -42,12 +42,14 @@ class Scheduler(
     private val track: Track,
     private val timer: Timer,
     private val testBundleIdentifier: TestBundleIdentifier?,
+    private val filteredTestsCount: Int,
     override val coroutineContext: CoroutineContext
 ) : CoroutineScope {
 
     private val job = Job()
     private val pools = ConcurrentHashMap<DevicePoolId, SendChannel<FromScheduler>>()
     private val poolingStrategy = configuration.poolingStrategy.toPoolingStrategy()
+    private val deviceCount = deviceProvider.returnDeviceCount()
 
     private val logger = MarathonLogging.logger("Scheduler")
 
@@ -111,7 +113,7 @@ class Scheduler(
         logger.debug { "device ${device.serialNumber} associated with poolId ${poolId.name}" }
         pools.computeIfAbsent(poolId) { id ->
             logger.debug { "pool actor ${id.name} is being created" }
-            DevicePoolActor(id, configuration, analytics, shard, progressReporter, track, timer, parent, context, testBundleIdentifier)
+            DevicePoolActor(id, configuration, analytics, shard, progressReporter, track, timer, parent, context, testBundleIdentifier, filteredTestsCount, deviceCount)
         }
         pools[poolId]?.send(AddDevice(device)) ?: logger.debug {
             "not sending the AddDevice event " +

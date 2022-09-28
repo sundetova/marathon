@@ -29,6 +29,10 @@ class StubDeviceProvider : DeviceProvider, CoroutineScope {
         return channel
     }
 
+    override fun returnDeviceCount(): Int {
+        return 0
+    }
+
     override suspend fun terminate() {
         channel.close()
     }

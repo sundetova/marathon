@@ -34,6 +34,8 @@ class DevicePoolActor(
     parent: Job,
     context: CoroutineContext,
     testBundleIdentifier: TestBundleIdentifier?,
+    filteredTestsCount: Int,
+    deviceCount: Int
 ) :
     Actor<DevicePoolMessage>(parent = parent, context = context) {
 
@@ -69,7 +71,9 @@ class DevicePoolActor(
         timer,
         testBundleIdentifier,
         poolJob,
-        context
+        context,
+        filteredTestsCount,
+        deviceCount
     )
 
     private val devices = mutableMapOf<String, SendChannel<DeviceEvent>>()

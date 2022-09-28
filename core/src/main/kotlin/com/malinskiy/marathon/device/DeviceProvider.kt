@@ -12,4 +12,5 @@ interface DeviceProvider {
     suspend fun initialize()
     suspend fun terminate()
     fun subscribe(): Channel<DeviceEvent>
+    fun returnDeviceCount(): Int
 }

@@ -91,6 +91,7 @@ class Marathon(
             track,
             timer,
             testBundleIdentifier,
+            filteredTestsCount = tests.size,
             currentCoroutineContext
         )
 

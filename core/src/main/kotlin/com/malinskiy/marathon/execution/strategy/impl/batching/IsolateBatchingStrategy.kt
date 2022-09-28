@@ -11,7 +11,9 @@ class IsolateBatchingStrategy : BatchingStrategy {
     override fun process(
         queue: Queue<Test>,
         analytics: Analytics,
-        testBundleIdentifier: TestBundleIdentifier?
+        testBundleIdentifier: TestBundleIdentifier?,
+        filteredTestsNumber: Int,
+        deviceCount: Int
     ): TestBatch = TestBatch(listOf(queue.poll()))
 
     override fun hashCode() = javaClass.canonicalName.hashCode()

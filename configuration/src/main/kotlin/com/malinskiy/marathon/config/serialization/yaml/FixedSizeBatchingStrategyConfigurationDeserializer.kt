@@ -23,8 +23,6 @@ class FixedSizeBatchingStrategyConfigurationDeserializer(private val instantTime
         val node: JsonNode = codec.readTree(p) ?: throw ConfigurationException("Invalid sorting strategy")
 
         val size = node.findValue("size")?.asInt()
-            ?: throw ConfigurationException("Missing size value")
-
         val durationMillis = node.findValue("durationMillis")?.asLong()
         val percentile = node.findValue("percentile")?.asDouble()
         val lastMileLength = node.findValue("lastMileLength")?.asInt()

@@ -196,6 +196,10 @@ class AdamDeviceProvider(
     }
 
     override fun subscribe() = channel
+
+    override fun returnDeviceCount(): Int {
+        return devices.size
+    }
 }
 
 data class ProvidedDevice(
