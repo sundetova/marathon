@@ -18,11 +18,11 @@ class IsolateBatchingStrategyTest {
         val tests = generateTests(50)
         queue.addAll(tests)
         queue.size shouldBe 50
-        strategy.process(queue, analytics, null).tests.size shouldBe 1
+        strategy.process(queue, analytics, null, 1, 1).tests.size shouldBe 1
         queue.size shouldBe 49
-        strategy.process(queue, analytics, null).tests.size shouldBe 1
+        strategy.process(queue, analytics, null, 1, 1).tests.size shouldBe 1
         queue.size shouldBe 48
-        strategy.process(queue, analytics, null).tests.size shouldBe 1
+        strategy.process(queue, analytics, null, 1, 1).tests.size shouldBe 1
         queue.size shouldBe 47
     }
 }

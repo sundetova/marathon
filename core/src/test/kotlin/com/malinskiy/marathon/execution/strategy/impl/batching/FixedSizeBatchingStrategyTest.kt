@@ -16,7 +16,7 @@ class FixedSizeBatchingStrategyTest {
     fun `test batching strategy with fixed size should create 5 batches for 50 tests with batch size 10`() {
         val tests = LinkedList(generateTests(50))
         val strategy = BatchingStrategyConfiguration.FixedSizeBatchingStrategyConfiguration(10).toBatchingStrategy()
-        val batch = strategy.process(tests, analytics, null)
+        val batch = strategy.process(tests, analytics, null, 1, 1)
         batch.tests.size shouldBe 10
     }
 
@@ -24,7 +24,7 @@ class FixedSizeBatchingStrategyTest {
     fun `test batching strategy with fixed size should create 1 batch for 10 tests with batch size 10`() {
         val tests = LinkedList(generateTests(10))
         val strategy = BatchingStrategyConfiguration.FixedSizeBatchingStrategyConfiguration(10).toBatchingStrategy()
-        val batch = strategy.process(tests, analytics, null)
+        val batch = strategy.process(tests, analytics, null, 1, 1)
         batch.tests.size shouldBe 10
     }
 }

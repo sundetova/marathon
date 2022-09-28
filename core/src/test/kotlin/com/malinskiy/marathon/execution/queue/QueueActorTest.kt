@@ -263,7 +263,9 @@ private fun createQueueActor(
     mock(),
     null,
     job,
-    Dispatchers.Unconfined
+    Dispatchers.Unconfined,
+    1,
+    1
 )
 
 private val DEFAULT_CONFIGURATION = Configuration.Builder(
