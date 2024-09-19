@@ -39,9 +39,7 @@ class QueueActor(
     poolJob: Job,
     coroutineContext: CoroutineContext
 ) :
-    Actor<QueueMessage>(parent = poolJob, context = coroutineContext) {
-
-    private val logger = MarathonLogging.logger("QueueActor[$poolId]")
+    Actor<QueueMessage>(parent = poolJob, context = coroutineContext, logger = MarathonLogging.logger("QueueActor[$poolId]")) {
 
     private val sortingStrategy = configuration.sortingStrategy.toSortingStrategy()
 
@@ -75,7 +73,7 @@ class QueueActor(
             }
 
             is QueueMessage.ReturnBatch -> {
-                onReturnBatch(msg.device, msg.batch)
+                onReturnBatch(msg.device, msg.batch, msg.reason)
             }
         }
     }
@@ -110,7 +108,7 @@ class QueueActor(
         }
 
         for (test in uncompletedRetryQuotaExceeded) {
-            logger.debug { "uncompletedTestRetryQuota exceeded for ${test.test.toTestName()}}" }
+            logger.debug { "uncompletedTestRetryQuota exceeded for ${test.test.toTestName()}" }
             val testAction = poolProgressAccumulator.testEnded(device, test, final = true)
             processTestAction(testAction, test)
         }
@@ -126,8 +124,8 @@ class QueueActor(
         }
     }
 
-    private suspend fun onReturnBatch(device: DeviceInfo, batch: TestBatch) {
-        logger.debug { "onReturnBatch ${device.serialNumber}" }
+    private suspend fun onReturnBatch(device: DeviceInfo, batch: TestBatch, reason: String) {
+        logger.debug { "onReturnBatch ${device.serialNumber}. reason=$reason" }
 
         val uncompletedTests = batch.tests
         val results = uncompletedTests.map {
@@ -186,10 +184,9 @@ class QueueActor(
         device: DeviceInfo
     ) {
         logger.debug { "handle failed tests ${device.serialNumber}" }
-        val retryList = retryStrategy.process(poolId, failed, testShard)
+        val retryList = retryStrategy.process(poolId, failed, testShard, poolProgressAccumulator)
 
         retryList.forEach {
-            poolProgressAccumulator.retryTest(it.test)
             val testAction = poolProgressAccumulator.testEnded(device, it)
             processTestAction(testAction, it)
             rerunTest(it.test)

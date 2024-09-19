@@ -13,7 +13,7 @@ class MarathonRunCommonOptions : OptionGroup() {
     val marathonfile by option("--marathonfile", "-m", help="Marathonfile file path")
         .file()
         .default(File("Marathonfile"))
-    val analyticsTracking by option("--analyticsTracking", help="Enable anonymous analytics tracking")
+    val analyticsTracking by option("--analyticsTracking", help="Enable / Disable anonymous analytics tracking. Enabled by default.")
         .convert { it.toBoolean() }
         .default(true)
     val bugsnagReporting by option("--bugsnag", help="Enable/Disable anonymous crash reporting. Enabled by default")
@@ -58,11 +58,15 @@ class Parse(
     private val marathonfile by option("--marathonfile", "-m", help="Marathonfile file path")
         .file()
         .default(File("Marathonfile"))
-    private val parseOutputFileName by option("--output", "-o", help="Output file name in yaml format")
+    private val parseOutputFileName by option("--output", "-o", help="Output file name without extension. Will be in the outputDir with .yaml extension")
+    private val includeFlakyTests by option("--include-flaky-tests", "-f", help="Include/exclude flaky tests that will have preventive retries according to the current flakinessStrategy")
+        .convert { it.toBoolean() }
+        .default(false)
     override fun run() {
         val parseCommandCliConfiguration = ParseCommandCliConfiguration(
             marathonfile = marathonfile,
-            outputFileName = parseOutputFileName
+            outputFileName = parseOutputFileName,
+            includeFlakyTests = includeFlakyTests,
         )
         starter(parseCommandCliConfiguration)
     }

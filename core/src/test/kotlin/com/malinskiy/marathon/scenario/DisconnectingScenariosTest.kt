@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class, ExperimentalTime::class)
+
 package com.malinskiy.marathon.scenario
 
 import com.malinskiy.marathon.device.DeviceProvider
@@ -6,9 +8,9 @@ import com.malinskiy.marathon.test.StubDevice
 import com.malinskiy.marathon.test.assert.shouldBeEqualToAsJson
 import com.malinskiy.marathon.test.setupMarathon
 import com.malinskiy.marathon.time.Timer
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.whenever
-import kotlinx.coroutines.GlobalScope
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
@@ -18,7 +20,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.koin.core.context.stopKoin
 import java.io.File
-import java.util.concurrent.TimeUnit
+import kotlin.time.ExperimentalTime
 import com.malinskiy.marathon.test.Test as MarathonTest
 
 class DisconnectingScenariosTest {

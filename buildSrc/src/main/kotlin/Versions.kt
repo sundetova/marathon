@@ -1,69 +1,60 @@
 object Versions {
-    val marathon = System.getenv("GIT_TAG_NAME") ?: "0.8.2"
+    val marathon = System.getenv("GIT_TAG_NAME") ?: "0.10.1"
 
-    val kotlin = "1.8.10"
-    val coroutines = "1.6.4"
+    val kotlin = "1.9.10"
+    val coroutines = "1.7.3"
     val coroutinesTest = coroutines
 
-    val androidCommon = "31.0.0"
-    val adam = "0.5.1"
+    val androidCommon = "31.2.2"
+    val adam = "0.5.8"
     val dexTestParser = "2.3.4"
     val kotlinLogging = "3.0.5"
-    val logbackClassic = "1.4.7"
+    val logbackClassic = "1.4.14"
     val axmlParser = "1.0"
-    val bugsnag = "3.6.4"
+    val bugsnag = "3.7.1"
 
     val junitGradle = "1.2.0"
-    val androidGradleVersion = "7.4.1"
-    val gradlePluginPublish = "1.2.0"
-    val gradlePluginShadow = "7.1.2"
 
-    val junit5 = "5.9.2"
-    val kluent = "1.72"
+    val junit5 = "5.10.1"
+    val kluent = "1.73"
 
     val kakao = "3.0.2"
-    val espresso = "3.0.1"
-    val espressoRules = "1.0.1"
-    val espressoRunner = "1.0.1"
-    val junit = "4.13.2"
     val gson = "2.10.1"
-    val apacheCommonsText = "1.10.0"
+    val apacheCommonsText = "1.11.0"
     val apacheCommonsIO = "2.11.0"
-    val apacheCommonsCodec = "1.15"
-    val okhttp = "4.10.0"
-    val influxDbClient = "2.23"
-    val influxDb2Client = "6.8.0"
-    val clikt = "3.5.2"
-    val jacksonDatabind = "2.14.2"
+    val okhttp = "4.12.0"
+    val influxDbClient = "2.24"
+    val influxDb2Client = "6.12.0"
+    val clikt = "4.2.2"
+    val jacksonDatabind = "2.15.3"
     val jacksonKotlin = jacksonDatabind
     val jacksonYaml = jacksonDatabind
     val jacksonJSR310 = jacksonDatabind
     val jacksonAnnotations = jacksonDatabind
     val ddPlist = "1.27"
-    val guava = "31.1-jre"
-    val rsync4j = "3.2.7-1"
-    val sshj = "0.35.0"
+    val guava = "33.0.0-jre"
+    val rsync4j = "3.2.7-6"
+    val sshj = "0.38.0"
     val kotlinProcess = "1.4.1"
-    val testContainers = "1.18.0"
+    val testContainers = "1.19.4"
     val jupiterEngine = junit5
-    val jansi = "2.4.0"
+    val jansi = "2.4.1"
     val scalr = "4.2"
-    val allureTestFilter = "2.21.0"
-    val allureJava = "2.21.0"
+    val allureTestFilter = "2.25.0"
+    val allureJava = "2.25.0"
     val allureKotlin = "2.4.0"
     val allureEnvironment = "1.0.0"
-    val mockitoKotlin = "2.2.0"
-    val dokka = "1.8.10"
-    val koin = "3.4.0"
+    val mockitoKotlin = "5.2.1"
+    val dokka = "1.9.10"
+    val koin = "3.5.3"
     val jsonAssert = "1.5.1"
     val xmlUnit = "2.9.1"
-    val assertk = "0.25"
+    val assertk = "0.28.0"
 }
 
 object BuildPlugins {
     val kotlinPlugin = "org.jetbrains.kotlin:kotlin-gradle-plugin:${Versions.kotlin}"
     val junitGradle = "org.junit.platform:junit-platform-gradle-plugin:${Versions.junitGradle}"
-    val androidGradle = "com.android.tools.build:gradle:${Versions.androidGradleVersion}"
     val dokka = "org.jetbrains.dokka:dokka-gradle-plugin:${Versions.dokka}"
 }
 
@@ -82,7 +73,6 @@ object Libraries {
     val gson = "com.google.code.gson:gson:${Versions.gson}"
     val apacheCommonsText = "org.apache.commons:commons-text:${Versions.apacheCommonsText}"
     val apacheCommonsIO = "commons-io:commons-io:${Versions.apacheCommonsIO}"
-    val apacheCommonsCodec = "commons-codec:commons-codec:${Versions.apacheCommonsCodec}"
     val influxDbClient = "org.influxdb:influxdb-java:${Versions.influxDbClient}"
     val influxDb2Client = "com.influxdb:influxdb-client-java:${Versions.influxDb2Client}"
     val clikt = "com.github.ajalt.clikt:clikt:${Versions.clikt}"
@@ -110,11 +100,8 @@ object Libraries {
 object TestLibraries {
     val junit5 = "org.junit.jupiter:junit-jupiter:${Versions.junit5}"
     val kluent = "org.amshove.kluent:kluent:${Versions.kluent}"
-    val kakao = "io.github.kakaocup:kakao:${Versions.kakao}"
-    
-    val junit = "junit:junit:${Versions.junit}"
 
-    val mockitoKotlin = "com.nhaarman.mockitokotlin2:mockito-kotlin:${Versions.mockitoKotlin}"
+    val mockitoKotlin = "org.mockito.kotlin:mockito-kotlin:${Versions.mockitoKotlin}"
     val jupiterEngine = "org.junit.jupiter:junit-jupiter-engine:${Versions.jupiterEngine}"
     val koin = "io.insert-koin:koin-test:${Versions.koin}"
     val jsonAssert = "org.skyscreamer:jsonassert:${Versions.jsonAssert}"

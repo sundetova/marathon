@@ -45,16 +45,18 @@ class MarathonTestParseCommand(private val outputDir: File) {
         )
     }
 
-    fun execute(tests: List<Test>, outputFileName: String?) {
-        val parseResult = ParseCommandResult(tests)
+    fun execute(tests: List<Test>, flakyTests: List<Test>, outputFileName: String?) {
+        val parsedFlakyTests = flakyTests.ifEmpty { null }
+        val parseResult = ParseCommandResult(tests, parsedFlakyTests)
         val res = mapper.writeValueAsString(parseResult)
 
         log.info { "Parse execute mode. Result" }
-        log.info { res }
-        if (outputFileName == null) return
-
-        val dirPath = Files.createDirectories(get(outputDir.absolutePath))
-        val resultFile = File(dirPath.toFile(), outputFileName + EXTENSION)
-        resultFile.writeText(res)
+        if (outputFileName != null) {
+            val dirPath = Files.createDirectories(get(outputDir.absolutePath))
+            val resultFile = File(dirPath.toFile(), outputFileName + EXTENSION)
+            resultFile.writeText(res)
+        } else {
+            log.info { res }
+        }
     }
 }

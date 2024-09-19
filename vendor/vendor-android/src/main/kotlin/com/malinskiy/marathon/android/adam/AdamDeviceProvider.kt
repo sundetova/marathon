@@ -13,11 +13,13 @@ import com.malinskiy.marathon.analytics.internal.pub.Track
 import com.malinskiy.marathon.android.AndroidTestBundleIdentifier
 import com.malinskiy.marathon.config.Configuration
 import com.malinskiy.marathon.config.vendor.VendorConfiguration
+import com.malinskiy.marathon.coroutines.newCoroutineExceptionHandler
 import com.malinskiy.marathon.device.DeviceProvider
 import com.malinskiy.marathon.exceptions.NoDevicesException
 import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.time.Timer
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -36,7 +38,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.net.ConnectException
 import java.net.InetAddress
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.CoroutineContext
 
 const val DEFAULT_WAIT_FOR_DEVICES_SLEEP_TIME = 500L
 
@@ -51,22 +52,19 @@ class AdamDeviceProvider(
     private val logger = MarathonLogging.logger("AdamDeviceProvider")
 
     private val channel: Channel<DeviceProvider.DeviceEvent> = unboundedChannel()
-    override val coroutineContext: CoroutineContext by lazy { newFixedThreadPoolContext(1, "DeviceMonitor") }
-    private val adbCommunicationContext: CoroutineContext by lazy {
-        newFixedThreadPoolContext(
-            vendorConfiguration.threadingConfiguration.adbIoThreads,
-            "AdbIOThreadPool"
-        )
-    }
+
+    private val dispatcher = newFixedThreadPoolContext(vendorConfiguration.threadingConfiguration.bootWaitingThreads, "DeviceMonitor")
+    private val installDispatcher = Dispatchers.IO.limitedParallelism(vendorConfiguration.threadingConfiguration.installThreads)
+    override val coroutineContext = dispatcher + newCoroutineExceptionHandler(logger)
+
     private val setupSupervisor = SupervisorJob()
     private var providerJob: Job? = null
-
-    override val deviceInitializationTimeoutMillis: Long = configuration.deviceInitializationTimeoutMillis
 
     private lateinit var clients: List<AndroidDebugBridgeClient>
     private val socketFactory = VertxSocketFactory(idleTimeout = vendorConfiguration.timeoutConfiguration.socketIdleTimeout.toMillis())
     private val logcatManager: LogcatManager = LogcatManager()
     private lateinit var deviceEventsChannel: ReceiveChannel<Pair<AndroidDebugBridgeClient, List<Device>>>
+    private var deviceEventsChannelInitialized = false
     private val deviceEventsChannelMutex = Mutex()
     private val multiServerDeviceStateTracker = MultiServerDeviceStateTracker()
 
@@ -132,6 +130,7 @@ class AdamDeviceProvider(
                             }
                         }
                     }
+                    deviceEventsChannelInitialized = true
                 }
                 for ((client, currentDeviceList) in deviceEventsChannel) {
                     multiServerDeviceStateTracker.update(client, currentDeviceList).forEach { update ->
@@ -145,6 +144,7 @@ class AdamDeviceProvider(
                                         multiServerDeviceStateTracker.getTracker(client),
                                         logcatManager,
                                         testBundleIdentifier,
+                                        installDispatcher,
                                         serial,
                                         configuration,
                                         vendorConfiguration,
@@ -160,6 +160,7 @@ class AdamDeviceProvider(
                                     devices[serial] = ProvidedDevice(device, job)
                                 }
                             }
+
                             TrackingUpdate.DISCONNECTED -> {
                                 devices[serial]?.let { (device, job) ->
                                     if (job.isActive) {
@@ -169,9 +170,12 @@ class AdamDeviceProvider(
                                     device.dispose()
                                 }
                             }
+
                             TrackingUpdate.NOTHING_TO_DO -> Unit
                         }
-                        logger.debug { "Device $serial changed state to $state" }
+                        if (state != TrackingUpdate.NOTHING_TO_DO) {
+                            logger.debug { "Device $serial changed state to $state" }
+                        }
                     }
                 }
             }
@@ -179,10 +183,10 @@ class AdamDeviceProvider(
     }
 
     override suspend fun borrow(): AdamAndroidDevice {
-        var availableDevices = devices.filter { it.value.setupJob.isCompleted }
-        while(availableDevices.isEmpty()) {
+        var availableDevices = devices.filter { it.value.setupJob.isCompleted && !it.value.setupJob.isCancelled }
+        while (availableDevices.isEmpty()) {
             delay(200)
-            availableDevices = devices.filter { it.value.setupJob.isCompleted }
+            availableDevices = devices.filter { it.value.setupJob.isCompleted && !it.value.setupJob.isCancelled }
         }
         return availableDevices.values.random().device
     }
@@ -198,7 +202,9 @@ class AdamDeviceProvider(
         providerJob?.cancel()
         channel.close()
         deviceEventsChannelMutex.withLock {
-            deviceEventsChannel.cancel()
+            if (deviceEventsChannelInitialized) {
+                deviceEventsChannel.cancel()
+            }
         }
         logcatManager.close()
         socketFactory.close()

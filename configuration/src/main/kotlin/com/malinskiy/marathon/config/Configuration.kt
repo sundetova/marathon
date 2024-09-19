@@ -36,7 +36,6 @@ data class Configuration private constructor(
     val isCodeCoverageEnabled: Boolean,
     val uncompletedTestRetryQuota: Int,
 
-    val testClassRegexes: Collection<Regex>,
     val includeSerialRegexes: Collection<Regex>,
     val excludeSerialRegexes: Collection<Regex>,
 
@@ -49,7 +48,9 @@ data class Configuration private constructor(
     val vendorConfiguration: VendorConfiguration,
 
     val analyticsTracking: Boolean,
+    val bugsnagReporting: Boolean,
     val deviceInitializationTimeoutMillis: Long,
+    val ciConfiguration: CIConfiguration,
 ) {
     fun toMap() =
         mapOf<String, String>(
@@ -67,7 +68,6 @@ data class Configuration private constructor(
             "ignoreFailures" to ignoreFailures.toString(),
             "isCodeCoverageEnabled" to isCodeCoverageEnabled.toString(),
             "executionStrategy" to executionStrategy.toString(),
-            "testClassRegexes" to testClassRegexes.toString(),
             "includeSerialRegexes" to includeSerialRegexes.toString(),
             "excludeSerialRegexes" to excludeSerialRegexes.toString(),
             "testBatchTimeoutMillis" to testBatchTimeoutMillis.toString(),
@@ -75,7 +75,8 @@ data class Configuration private constructor(
             "debug" to debug.toString(),
             "screenRecordingPolicy" to screenRecordingPolicy.toString(),
             "vendorConfiguration" to vendorConfiguration.toString(),
-            "deviceInitializationTimeoutMillis" to deviceInitializationTimeoutMillis.toString()
+            "deviceInitializationTimeoutMillis" to deviceInitializationTimeoutMillis.toString(),
+            "ciConfiguration" to ciConfiguration.toString(),
         )
 
     override fun equals(other: Any?): Boolean {
@@ -99,8 +100,6 @@ data class Configuration private constructor(
         if (isCodeCoverageEnabled != other.isCodeCoverageEnabled) return false
         if (executionStrategy != other.executionStrategy) return false
         if (uncompletedTestRetryQuota != other.uncompletedTestRetryQuota) return false
-        //For testing we need to compare configuration instances. Unfortunately Regex equality is broken so need to map it to String
-        if (testClassRegexes.map { it.pattern } != other.testClassRegexes.map { it.pattern }) return false
         if (includeSerialRegexes.map { it.pattern } != other.includeSerialRegexes.map { it.pattern }) return false
         if (excludeSerialRegexes.map { it.pattern } != other.excludeSerialRegexes.map { it.pattern }) return false
         if (testBatchTimeoutMillis != other.testBatchTimeoutMillis) return false
@@ -109,7 +108,9 @@ data class Configuration private constructor(
         if (screenRecordingPolicy != other.screenRecordingPolicy) return false
         if (vendorConfiguration != other.vendorConfiguration) return false
         if (analyticsTracking != other.analyticsTracking) return false
+        if (bugsnagReporting != other.bugsnagReporting) return false
         if (deviceInitializationTimeoutMillis != other.deviceInitializationTimeoutMillis) return false
+        if (ciConfiguration != other.ciConfiguration) return false
 
         return true
     }
@@ -130,7 +131,6 @@ data class Configuration private constructor(
         result = 31 * result + isCodeCoverageEnabled.hashCode()
         result = 31 * result + executionStrategy.hashCode()
         result = 31 * result + uncompletedTestRetryQuota
-        result = 31 * result + testClassRegexes.hashCode()
         result = 31 * result + includeSerialRegexes.hashCode()
         result = 31 * result + excludeSerialRegexes.hashCode()
         result = 31 * result + testBatchTimeoutMillis.hashCode()
@@ -139,7 +139,9 @@ data class Configuration private constructor(
         result = 31 * result + screenRecordingPolicy.hashCode()
         result = 31 * result + vendorConfiguration.hashCode()
         result = 31 * result + analyticsTracking.hashCode()
+        result = 31 * result + bugsnagReporting.hashCode()
         result = 31 * result + deviceInitializationTimeoutMillis.hashCode()
+        result = 31 * result + ciConfiguration.hashCode()
         return result
     }
 
@@ -160,7 +162,6 @@ data class Configuration private constructor(
          var executionStrategy: ExecutionStrategyConfiguration = ExecutionStrategyConfiguration(),
          var uncompletedTestRetryQuota: Int = Integer.MAX_VALUE,
 
-         var testClassRegexes: Collection<Regex> = listOf(Regex("^((?!Abstract).)*Test[s]*$")),
          var includeSerialRegexes: Collection<Regex> = emptyList(),
          var excludeSerialRegexes: Collection<Regex> = emptyList(),
 
@@ -170,11 +171,13 @@ data class Configuration private constructor(
 
          var screenRecordingPolicy: ScreenRecordingPolicy = ScreenRecordingPolicy.ON_FAILURE,
 
-         var analyticsTracking: Boolean = false,
+         var analyticsTracking: Boolean = true,
+         var bugsnagReporting: Boolean = true,
          var deviceInitializationTimeoutMillis: Long = DEFAULT_DEVICE_INITIALIZATION_TIMEOUT_MILLIS,
 
          var outputConfiguration: OutputConfiguration = OutputConfiguration(),
          var vendorConfiguration: VendorConfiguration = VendorConfiguration.EmptyVendorConfiguration(),
+         var ciConfiguration: CIConfiguration = CIConfiguration.None,
     ) {
         fun build(): Configuration {
             return Configuration(
@@ -193,7 +196,6 @@ data class Configuration private constructor(
                 isCodeCoverageEnabled = isCodeCoverageEnabled,
                 executionStrategy = executionStrategy,
                 uncompletedTestRetryQuota = uncompletedTestRetryQuota,
-                testClassRegexes = testClassRegexes,
                 includeSerialRegexes = includeSerialRegexes,
                 excludeSerialRegexes = excludeSerialRegexes,
                 testBatchTimeoutMillis = testBatchTimeoutMillis,
@@ -202,7 +204,9 @@ data class Configuration private constructor(
                 screenRecordingPolicy = screenRecordingPolicy,
                 vendorConfiguration = vendorConfiguration,
                 analyticsTracking = analyticsTracking,
-                deviceInitializationTimeoutMillis = deviceInitializationTimeoutMillis
+                bugsnagReporting = bugsnagReporting,
+                deviceInitializationTimeoutMillis = deviceInitializationTimeoutMillis,
+                ciConfiguration = ciConfiguration,
             )
         }
     }

@@ -27,6 +27,7 @@ import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.device.OperatingSystem
 import com.malinskiy.marathon.device.toDeviceInfo
 import com.malinskiy.marathon.exceptions.DeviceSetupException
+import com.malinskiy.marathon.execution.Attachment
 import com.malinskiy.marathon.execution.TestBatchResults
 import com.malinskiy.marathon.extension.withTimeoutOrNull
 import com.malinskiy.marathon.io.FileManager
@@ -38,7 +39,6 @@ import com.malinskiy.marathon.time.Timer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import java.util.UUID
 import kotlin.system.measureTimeMillis
 
@@ -59,7 +59,7 @@ abstract class BaseAndroidDevice(
     override var manufacturer: String = "Unknown"
     override var deviceFeatures: Collection<DeviceFeature> = emptyList()
     override var apiLevel: Int = version.apiLevel
-    override var operatingSystem: OperatingSystem = OperatingSystem(version.apiString)
+    override var operatingSystem: OperatingSystem = OperatingSystem(version.apiStringWithoutExtension)
     override var initialRotation: Rotation = Rotation.ROTATION_0
     var realSerialNumber: String = "Unknown"
     var booted: Boolean = false
@@ -79,11 +79,12 @@ abstract class BaseAndroidDevice(
         get() = initialRotation
 
     override suspend fun setup() {
-        booted = waitForBoot()
-        if(!booted) {
-            throw DeviceSetupException("Unable to configure device $serialNumber: not booted")
-        }
-        
+        booted = false
+        withTimeoutOrNull(androidConfiguration.timeoutConfiguration.boot) {
+            waitForBoot()
+            booted = true
+        } ?: throw DeviceSetupException("Unable to configure device $serialNumber: not booted")
+
         abi = getProperty("ro.product.cpu.abi") ?: abi
 
         val sdk = getProperty("ro.build.version.sdk")
@@ -92,7 +93,7 @@ abstract class BaseAndroidDevice(
             AndroidVersion(sdk.toInt(), codename)
         } else AndroidVersion.DEFAULT
         apiLevel = version.apiLevel
-        operatingSystem = OperatingSystem(version.apiString)
+        operatingSystem = OperatingSystem(version.apiStringWithoutExtension)
         model = getProperty("ro.product.model") ?: "Unknown"
         manufacturer = getProperty("ro.product.manufacturer") ?: "Unknown"
         initialRotation = fetchRotation()
@@ -174,23 +175,22 @@ abstract class BaseAndroidDevice(
     }
 
     private suspend fun detectFeatures(): List<DeviceFeature> {
-        val hasScreenRecord = when {
+        val screenRecordSupport = when {
             !version.isGreaterOrEqualThan(19) -> false
             else -> hasBinary("/system/bin/screenrecord")
         }
-        val videoSupport = hasScreenRecord && manufacturer != "Genymotion"
         val screenshotSupport = version.isGreaterOrEqualThan(AndroidVersion.VersionCodes.JELLY_BEAN)
 
         val features = mutableListOf<DeviceFeature>()
 
-        if (videoSupport) features.add(DeviceFeature.VIDEO)
+        if (screenRecordSupport) features.add(DeviceFeature.VIDEO)
         if (screenshotSupport) features.add(DeviceFeature.SCREENSHOT)
         return features
     }
 
 
-    override suspend fun safeClearPackage(packageName: String): ShellCommandResult? =
-        safeExecuteShellCommand("pm clear $packageName", "Could not clear package $packageName on device: $serialNumber")
+    override suspend fun clearPackage(packageName: String): ShellCommandResult? =
+        criticalExecuteShellCommand("pm clear $packageName", "Could not clear package $packageName on device: $serialNumber")
 
     protected suspend fun clearLogcat() = safeExecuteShellCommand("logcat -c", "Could not clear logcat on device: $serialNumber")
 
@@ -215,28 +215,14 @@ abstract class BaseAndroidDevice(
         return safeExecuteShellCommand("ls $path")?.exitCode == 0
     }
 
-    private suspend fun waitForBoot(): Boolean {
-        var booted = false
-
-        for (i in 1..30) {
-            if (getProperty("sys.boot_completed", false) != null) {
-                logger.debug { "Device $serialNumber booted!" }
-                booted = true
-                break
-            } else {
-                delay(1000)
-                logger.debug { "Device $serialNumber is still booting..." }
-            }
-
-            if (Thread.interrupted() || !isActive) {
-                booted = true
-                break
-            }
+    private suspend fun waitForBoot() {
+        while (getProperty("sys.boot_completed", false) == null) {
+            logger.debug { "Device $serialNumber is still booting..." }
+            delay(1000)
         }
-
-        return booted
+        logger.debug { "Device $serialNumber booted!" }
     }
-    
+
     fun isLocalEmulator() = adbSerial.startsWith("emulator-")
 
     protected suspend fun AndroidDevice.isEmulator(): Boolean = when {
@@ -251,7 +237,11 @@ abstract class BaseAndroidDevice(
         testBatch: TestBatch,
         deferred: CompletableDeferred<TestBatchResults>,
     ): CompositeTestRunListener {
-        val fileManager = FileManager(configuration.outputConfiguration.maxPath, configuration.outputDir)
+        val fileManager = FileManager(
+            configuration.outputConfiguration.maxPath,
+            configuration.outputConfiguration.maxFilename,
+            configuration.outputDir
+        )
         val attachmentProviders = mutableListOf<AttachmentProvider>()
 
         val features = this.deviceFeatures
@@ -263,7 +253,7 @@ abstract class BaseAndroidDevice(
         } ?: NoOpTestRunListener()
 
         val logListener = TestRunListenerAdapter(
-            LogListener(this.toDeviceInfo(), this, devicePoolId, testBatch.id, LogWriter(fileManager))
+            LogListener(this.toDeviceInfo(), this, devicePoolId, testBatch.id, LogWriter(fileManager), attachmentName = Attachment.Name.LOGCAT)
             .also { attachmentProviders.add(it) }
         )
 

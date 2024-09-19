@@ -8,6 +8,7 @@ import com.malinskiy.adam.request.testrunner.TestFailed
 import com.malinskiy.adam.request.testrunner.TestIgnored
 import com.malinskiy.adam.request.testrunner.TestRunEnded
 import com.malinskiy.adam.request.testrunner.TestRunFailed
+import com.malinskiy.adam.request.testrunner.TestRunFailing
 import com.malinskiy.adam.request.testrunner.TestRunStartedEvent
 import com.malinskiy.adam.request.testrunner.TestRunStopped
 import com.malinskiy.adam.request.testrunner.TestRunnerRequest
@@ -116,6 +117,7 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice, private val
                 is TestRunFailed -> listener.testRunFailed(event.error)
                 is TestRunStopped -> listener.testRunStopped(event.elapsedTimeMillis)
                 is TestRunEnded -> listener.testRunEnded(event.elapsedTimeMillis, event.metrics)
+                is TestRunFailing -> listener.testRunFailing(event.error, event.stackTrace)
             }
         }
     }
@@ -135,12 +137,12 @@ class AndroidDeviceTestRunner(private val device: AdamAndroidDevice, private val
         info: InstrumentationInfo
     ) {
         if (androidConfiguration.applicationPmClear) {
-            device.safeClearPackage(info.applicationPackage)?.output?.trim()?.also {
+            device.clearPackage(info.applicationPackage)?.output?.trim()?.also {
                 logger.debug { "Package ${info.applicationPackage} cleared: $it" }
             }
         }
         if (androidConfiguration.testApplicationPmClear) {
-            device.safeClearPackage(info.instrumentationPackage)?.output?.trim()?.also {
+            device.clearPackage(info.instrumentationPackage)?.output?.trim()?.also {
                 logger.debug { "Package ${info.instrumentationPackage} cleared: $it" }
             }
         }

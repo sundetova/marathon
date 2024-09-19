@@ -1,6 +1,5 @@
 name: "sample-ios-app tests"
 outputDir: "report/marathon-uiTests"
-testClassRegexes: ["^((?!Abstract).)*Tests$"]
 screenRecordingPolicy: ON_ANY
 isCodeCoverageEnabled: true
 flakinessStrategy:
@@ -27,8 +26,11 @@ vendorConfiguration:
       username: malinskiy
       key: ${HOME}/.ssh/marathon
     knownHostsPath: ${HOME}/.ssh/known_hosts
+    # Temporary fix for https://github.com/hierynomus/sshj/pull/934
+    keepAliveInterval: "PT0H0M0S"
   xcresult:
-    pull: true
+    pullingPolicy: ALWAYS
     remoteClean: true
+    preferredScreenCaptureFormat: SCREENSHOTS
   lifecycle:
     onPrepare: []

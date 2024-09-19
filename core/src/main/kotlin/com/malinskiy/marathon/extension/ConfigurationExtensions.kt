@@ -17,6 +17,7 @@ import com.malinskiy.marathon.execution.filter.FullyQualifiedClassnameFilter
 import com.malinskiy.marathon.execution.filter.FullyQualifiedTestnameFilter
 import com.malinskiy.marathon.execution.filter.SimpleClassnameFilter
 import com.malinskiy.marathon.execution.filter.SimpleTestNameFromFileFilter
+import com.malinskiy.marathon.execution.filter.SimpleTestnameFilter
 import com.malinskiy.marathon.execution.filter.TestMethodFilter
 import com.malinskiy.marathon.execution.filter.TestPackageFilter
 import com.malinskiy.marathon.execution.strategy.BatchingStrategy
@@ -64,11 +65,12 @@ fun TestFilterConfiguration.toTestFilter(): TestFilter {
         is TestFilterConfiguration.AnnotationDataFilterConfiguration -> AnnotationDataFilter(this)
         is TestFilterConfiguration.SimpleTestNameFromFileFilterConfiguration -> SimpleTestNameFromFileFilter(this)
         is TestFilterConfiguration.AnnotationFilterConfiguration -> AnnotationFilter(this)
-        is TestFilterConfiguration.CompositionFilterConfiguration -> CompositionFilter(this.filters.map { it.toTestFilter() }, this.op)
+        is TestFilterConfiguration.CompositionFilterConfiguration -> CompositionFilter(this.filters.map { it.toTestFilter() }, this.op, this.enabled)
         is TestFilterConfiguration.FragmentationFilterConfiguration -> FragmentationFilter(this)
         is TestFilterConfiguration.FullyQualifiedClassnameFilterConfiguration -> FullyQualifiedClassnameFilter(this)
         is TestFilterConfiguration.FullyQualifiedTestnameFilterConfiguration -> FullyQualifiedTestnameFilter(this)
         is TestFilterConfiguration.SimpleClassnameFilterConfiguration -> SimpleClassnameFilter(this)
+        is TestFilterConfiguration.SimpleTestnameFilterConfiguration -> SimpleTestnameFilter(this)
         is TestFilterConfiguration.TestMethodFilterConfiguration -> TestMethodFilter(this)
         is TestFilterConfiguration.TestPackageFilterConfiguration -> TestPackageFilter(this)
         is TestFilterConfiguration.AllureFilterConfiguration -> AllureTestFilter(this)

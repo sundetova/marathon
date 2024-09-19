@@ -26,6 +26,7 @@ data class FilteringConfiguration(
         name = "fully-qualified-class-name"
     ),
     JsonSubTypes.Type(value = TestFilterConfiguration.FullyQualifiedTestnameFilterConfiguration::class, name = "fully-qualified-test-name"),
+    JsonSubTypes.Type(value = TestFilterConfiguration.SimpleTestnameFilterConfiguration::class, name = "simple-test-name"),
     JsonSubTypes.Type(value = TestFilterConfiguration.SimpleClassnameFilterConfiguration::class, name = "simple-class-name"),
     JsonSubTypes.Type(value = TestFilterConfiguration.SimpleTestNameFromFileFilterConfiguration::class, name = "simple-test-name-from-file"),
     JsonSubTypes.Type(value = TestFilterConfiguration.TestMethodFilterConfiguration::class, name = "method"),
@@ -33,12 +34,53 @@ data class FilteringConfiguration(
     JsonSubTypes.Type(value = TestFilterConfiguration.AllureFilterConfiguration::class, name = "allure"),
 )
 sealed class TestFilterConfiguration {
+    @JsonProperty("enabled")
+    open val enabled: Boolean = true
+
     abstract fun validate()
 
     data class SimpleClassnameFilterConfiguration(
         @JsonProperty("regex") val regex: Regex? = null,
         @JsonProperty("values") val values: List<String>? = null,
         @JsonProperty("file") val file: File? = null,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
+    ) : TestFilterConfiguration() {
+        override fun validate() {
+            var i = 0
+            if (regex != null) i++
+            if (values != null) i++
+            if (file != null) i++
+
+            if (i > 1) throw ConfigurationException("Only one of [regex,values,file] can be specified for ${this::class.simpleName}")
+            if (i == 0) throw ConfigurationException("At least one of [regex,values,file] should be specified for ${this::class.simpleName}")
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as SimpleClassnameFilterConfiguration
+
+            if (!regex.toString().contentEquals(other.regex.toString())) return false
+            if (values != other.values) return false
+            if (file != other.file) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = regex?.hashCode() ?: 0
+            result = 31 * result + (values?.hashCode() ?: 0)
+            result = 31 * result + (file?.hashCode() ?: 0)
+            return result
+        }
+    }
+
+    data class SimpleTestnameFilterConfiguration(
+        @JsonProperty("regex") val regex: Regex? = null,
+        @JsonProperty("values") val values: List<String>? = null,
+        @JsonProperty("file") val file: File? = null,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
     ) : TestFilterConfiguration() {
         override fun validate() {
             var i = 0
@@ -75,6 +117,7 @@ sealed class TestFilterConfiguration {
         @JsonProperty("regex") val regex: Regex? = null,
         @JsonProperty("values") val values: List<String>? = null,
         @JsonProperty("file") val file: File? = null,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
     ) : TestFilterConfiguration() {
         override fun validate() {
             var i = 0
@@ -111,6 +154,8 @@ sealed class TestFilterConfiguration {
         @JsonProperty("regex") val regex: Regex? = null,
         @JsonProperty("values") val values: List<String>? = null,
         @JsonProperty("file") val file: File? = null,
+        @JsonProperty("subpackages") val subpackages: Boolean = false,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
     ) : TestFilterConfiguration() {
         override fun validate() {
             var i = 0
@@ -131,6 +176,7 @@ sealed class TestFilterConfiguration {
             if (!regex.toString().contentEquals(other.regex.toString())) return false
             if (values != other.values) return false
             if (file != other.file) return false
+            if (subpackages != other.subpackages) return false
 
             return true
         }
@@ -139,13 +185,15 @@ sealed class TestFilterConfiguration {
             var result = regex?.hashCode() ?: 0
             result = 31 * result + (values?.hashCode() ?: 0)
             result = 31 * result + (file?.hashCode() ?: 0)
+            result = 31 * result + (subpackages.hashCode())
             return result
         }
     }
 
     data class AnnotationDataFilterConfiguration(
         @JsonProperty("nameRegex") val nameRegex: Regex,
-        @JsonProperty("valueRegex") val valueRegex: Regex
+        @JsonProperty("valueRegex") val valueRegex: Regex,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
     ) : TestFilterConfiguration() {
         override fun validate() {}
 
@@ -174,6 +222,7 @@ sealed class TestFilterConfiguration {
         @JsonProperty("regex") val regex: Regex? = null,
         @JsonProperty("values") val values: List<String>? = null,
         @JsonProperty("file") val file: File? = null,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
     ) : TestFilterConfiguration() {
         override fun validate() {
             var i = 0
@@ -209,6 +258,7 @@ sealed class TestFilterConfiguration {
     data class FragmentationFilterConfiguration(
         val index: Int,
         val count: Int,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
     ) : TestFilterConfiguration() {
         override fun validate() {
             if (index < 0) throw ConfigurationException("Fragment index [$index] should be >= 0")
@@ -221,6 +271,7 @@ sealed class TestFilterConfiguration {
         @JsonProperty("regex") val regex: Regex? = null,
         @JsonProperty("values") val values: List<String>? = null,
         @JsonProperty("file") val file: File? = null,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
     ) : TestFilterConfiguration() {
         override fun validate() {
             var i = 0
@@ -257,6 +308,7 @@ sealed class TestFilterConfiguration {
         @JsonProperty("regex") val regex: Regex? = null,
         @JsonProperty("values") val values: List<String>? = null,
         @JsonProperty("file") val file: File? = null,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
     ) : TestFilterConfiguration() {
         override fun validate() {
             var i = 0
@@ -291,7 +343,8 @@ sealed class TestFilterConfiguration {
 
     data class CompositionFilterConfiguration(
         @JsonProperty("filters") val filters: List<TestFilterConfiguration>,
-        @JsonProperty("op") val op: OPERATION
+        @JsonProperty("op") val op: OPERATION,
+        @JsonProperty("enabled") override val enabled: Boolean = true,
     ) : TestFilterConfiguration() {
         override fun validate() {
             filters.forEach { it.validate() }
@@ -316,7 +369,9 @@ sealed class TestFilterConfiguration {
         override fun hashCode(): Int = filters.hashCode() + op.hashCode()
     }
 
-    object AllureFilterConfiguration : TestFilterConfiguration() {
+    data class AllureFilterConfiguration(
+        @JsonProperty("enabled") override val enabled: Boolean = true,
+    ) : TestFilterConfiguration() {
         override fun validate() {
         }
 

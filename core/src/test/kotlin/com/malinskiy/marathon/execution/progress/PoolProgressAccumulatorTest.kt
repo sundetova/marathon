@@ -12,8 +12,9 @@ import com.malinskiy.marathon.execution.TestShard
 import com.malinskiy.marathon.execution.TestStatus
 import com.malinskiy.marathon.generateTest
 import com.malinskiy.marathon.report.getDevice
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.reset
+import org.amshove.kluent.shouldBe
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.reset
 import org.amshove.kluent.shouldBeEqualTo
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -727,17 +728,16 @@ class PoolProgressAccumulatorTest {
          * test 2 failed
          */
         reporter.testStarted(device, test2)
-        reporter.testEnded(device, TestResult(test2, device, "2", TestStatus.FAILURE, 1, 2))
-        reporter.progress().shouldBeEqualTo(2 / 3f)
-
         /**
          * adding 4 retries for test2 and then test 2 passes once
          */
-        reporter.retryTest(test2)
-        reporter.retryTest(test2)
-        reporter.retryTest(test2)
-        reporter.retryTest(test2)
+        reporter.retryTest(test2) shouldBe null
+        reporter.retryTest(test2) shouldBe null
+        reporter.retryTest(test2) shouldBe null
+        reporter.retryTest(test2) shouldBe null
+        reporter.testEnded(device, TestResult(test2, device, "2", TestStatus.FAILURE, 1, 2))
         reporter.progress().shouldBeEqualTo(2 / 7f)
+
         reporter.testStarted(device, test2)
         reporter.testEnded(device, TestResult(test2, device, "2", TestStatus.PASSED, 2, 3))
         reporter.progress().shouldBeEqualTo(3 / 7f)

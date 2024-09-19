@@ -9,6 +9,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.malinskiy.marathon.config.AnalyticsConfiguration
 import com.malinskiy.marathon.config.ScreenRecordingPolicy
 import com.malinskiy.marathon.config.TestFilterConfiguration
+import com.malinskiy.marathon.config.analytics.Defaults
 import com.malinskiy.marathon.config.environment.EnvironmentConfiguration
 import com.malinskiy.marathon.config.environment.EnvironmentReader
 import com.malinskiy.marathon.config.exceptions.ConfigurationException
@@ -29,8 +30,7 @@ import com.malinskiy.marathon.config.vendor.android.ScreenshotConfiguration
 import com.malinskiy.marathon.config.vendor.android.SerialStrategy
 import com.malinskiy.marathon.config.vendor.android.TimeoutConfiguration
 import com.malinskiy.marathon.config.vendor.android.VideoConfiguration
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.whenever
+import org.mockito.kotlin.mock
 import org.amshove.kluent.`should be equal to`
 import org.amshove.kluent.shouldBe
 import org.amshove.kluent.shouldBeEmpty
@@ -41,6 +41,7 @@ import org.amshove.kluent.shouldThrow
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.whenever
 import java.io.File
 import java.time.Duration
 import java.time.Instant
@@ -72,14 +73,16 @@ class ConfigurationFactoryTest {
                 mockMarathonFileDir,
             )
         )
-            .registerModule(KotlinModule.Builder()
-                                .withReflectionCacheSize(512)
-                                .configure(KotlinFeature.NullToEmptyCollection, false)
-                                .configure(KotlinFeature.NullToEmptyMap, false)
-                                .configure(KotlinFeature.NullIsSameAsDefault, false)
-                                .configure(KotlinFeature.SingletonSupport, true)
-                                .configure(KotlinFeature.StrictNullChecks, false)
-                                .build())
+            .registerModule(
+                KotlinModule.Builder()
+                    .withReflectionCacheSize(512)
+                    .configure(KotlinFeature.NullToEmptyCollection, false)
+                    .configure(KotlinFeature.NullToEmptyMap, false)
+                    .configure(KotlinFeature.NullIsSameAsDefault, false)
+                    .configure(KotlinFeature.SingletonSupport, true)
+                    .configure(KotlinFeature.StrictNullChecks, false)
+                    .build()
+            )
             .registerModule(JavaTimeModule())
         parser = ConfigurationFactory(
             marathonfileDir = mockMarathonFileDir,
@@ -99,7 +102,8 @@ class ConfigurationFactoryTest {
             user = "root",
             password = "root",
             dbName = "marathon",
-            retentionPolicyConfiguration = AnalyticsConfiguration.InfluxDbConfiguration.RetentionPolicyConfiguration.default
+            retentionPolicyConfiguration = AnalyticsConfiguration.InfluxDbConfiguration.RetentionPolicyConfiguration.default,
+            defaults = Defaults(),
         )
         val poolingStrategyConfiguration = configuration.poolingStrategy as PoolingStrategyConfiguration.ComboPoolingStrategyConfiguration
         poolingStrategyConfiguration.list[0] shouldBeInstanceOf PoolingStrategyConfiguration.OmniPoolingStrategyConfiguration::class
@@ -127,12 +131,12 @@ class ConfigurationFactoryTest {
         configuration.retryStrategy shouldBeEqualTo
             RetryStrategyConfiguration.FixedQuotaRetryStrategyConfiguration(100, 2)
 
-        TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex()) shouldBeEqualTo
-            TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex())
+        TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex(),) shouldBeEqualTo
+            TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex(),)
 
         configuration.filteringConfiguration.allowlist shouldContainSame listOf(
-            TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex()),
-            TestFilterConfiguration.SimpleClassnameFilterConfiguration(values = listOf("SimpleTest")),
+            TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex(),),
+            TestFilterConfiguration.SimpleClassnameFilterConfiguration(values = listOf("SimpleTest"),),
             TestFilterConfiguration.FullyQualifiedClassnameFilterConfiguration(".*".toRegex()),
             TestFilterConfiguration.FullyQualifiedClassnameFilterConfiguration(
                 file = File(
@@ -154,7 +158,6 @@ class ConfigurationFactoryTest {
             TestFilterConfiguration.AnnotationFilterConfiguration(".*".toRegex()),
             TestFilterConfiguration.AnnotationDataFilterConfiguration(".*".toRegex(), ".*".toRegex())
         )
-        configuration.testClassRegexes.map { it.toString() } shouldContainSame listOf("^((?!Abstract).)*Test$")
 
         // Regex doesn't have proper equals method. Need to check the patter itself
         configuration.includeSerialRegexes.joinToString(separator = "") { it.pattern } shouldBeEqualTo """emulator-500[2,4]""".toRegex().pattern
@@ -189,7 +192,7 @@ class ConfigurationFactoryTest {
                 screenshotConfiguration = ScreenshotConfiguration(false, 1080, 1920, 200)
             ),
             15000L,
-            AllureConfiguration()
+            AllureConfiguration(),
         )
     }
 
@@ -209,7 +212,8 @@ class ConfigurationFactoryTest {
                 "1h",
                 5,
                 false
-            )
+            ),
+            defaults = Defaults(),
         )
     }
 
@@ -230,8 +234,6 @@ class ConfigurationFactoryTest {
 
         configuration.filteringConfiguration.allowlist.shouldBeEmpty()
         configuration.filteringConfiguration.blocklist.shouldBeEmpty()
-
-        configuration.testClassRegexes.map { it.toString() } shouldContainSame listOf("^((?!Abstract).)*Test[s]*$")
 
         configuration.includeSerialRegexes shouldBeEqualTo emptyList()
         configuration.excludeSerialRegexes shouldBeEqualTo emptyList()
@@ -259,7 +261,6 @@ class ConfigurationFactoryTest {
     }
 
 
-
     @Test
     fun `on configuration without an explicit xctestrun path should throw an exception`() {
         val file = File(ConfigurationFactoryTest::class.java.getResource("/fixture/config/sample_5.yaml").file)
@@ -279,14 +280,16 @@ class ConfigurationFactoryTest {
                 mockMarathonFileDir,
             )
         )
-            .registerModule(KotlinModule.Builder()
-                                .withReflectionCacheSize(512)
-                                .configure(KotlinFeature.NullToEmptyCollection, false)
-                                .configure(KotlinFeature.NullToEmptyMap, false)
-                                .configure(KotlinFeature.NullIsSameAsDefault, false)
-                                .configure(KotlinFeature.SingletonSupport, true)
-                                .configure(KotlinFeature.StrictNullChecks, false)
-                                .build())
+            .registerModule(
+                KotlinModule.Builder()
+                    .withReflectionCacheSize(512)
+                    .configure(KotlinFeature.NullToEmptyCollection, false)
+                    .configure(KotlinFeature.NullToEmptyMap, false)
+                    .configure(KotlinFeature.NullIsSameAsDefault, false)
+                    .configure(KotlinFeature.SingletonSupport, true)
+                    .configure(KotlinFeature.StrictNullChecks, false)
+                    .build()
+            )
             .registerModule(JavaTimeModule())
         parser = ConfigurationFactory(
             marathonfileDir = mockMarathonFileDir,
@@ -332,7 +335,7 @@ class ConfigurationFactoryTest {
         val configuration = parser.parse(file)
 
         configuration.filteringConfiguration.allowlist shouldBeEqualTo listOf(
-            TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex())
+            TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex(),)
         )
 
         configuration.filteringConfiguration.blocklist shouldBe emptyList()
@@ -346,7 +349,7 @@ class ConfigurationFactoryTest {
         configuration.filteringConfiguration.allowlist shouldBe emptyList()
 
         configuration.filteringConfiguration.blocklist shouldBeEqualTo listOf(
-            TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex())
+            TestFilterConfiguration.SimpleClassnameFilterConfiguration(".*".toRegex(),)
         )
     }
 
@@ -394,7 +397,10 @@ class ConfigurationFactoryTest {
         outputs shouldBeEqualTo listOf(
             AndroidTestBundleConfiguration(
                 application = File(mockMarathonFileDir, "kotlin-buildscript/build/outputs/apk/debug/first-app-debug.apk"),
-                testApplication = File(mockMarathonFileDir, "kotlin-buildscript/build/outputs/apk/androidTest/debug/first-app-debug-androidTest.apk"),
+                testApplication = File(
+                    mockMarathonFileDir,
+                    "kotlin-buildscript/build/outputs/apk/androidTest/debug/first-app-debug-androidTest.apk"
+                ),
                 extraApplications = null,
                 splitApks = listOf(
                     File(mockMarathonFileDir, "kotlin-buildscript/build/outputs/apk/androidTest/debug/first-app-split-debug.apk")
@@ -402,12 +408,53 @@ class ConfigurationFactoryTest {
             ),
             AndroidTestBundleConfiguration(
                 application = File(mockMarathonFileDir, "kotlin-buildscript/build/outputs/apk/debug/second-app-debug.apk"),
-                testApplication = File(mockMarathonFileDir, "kotlin-buildscript/build/outputs/apk/androidTest/debug/second-app-debug-androidTest.apk"),
+                testApplication = File(
+                    mockMarathonFileDir,
+                    "kotlin-buildscript/build/outputs/apk/androidTest/debug/second-app-debug-androidTest.apk"
+                ),
                 extraApplications = null,
                 splitApks = listOf(
                     File(mockMarathonFileDir, "kotlin-buildscript/build/outputs/apk/androidTest/debug/second-app-split-debug.apk")
                 )
             )
         )
+    }
+
+    @Test
+    fun `on configuration with tracking enabled by default`() {
+        val file = File(ConfigurationFactoryTest::class.java.getResource("/fixture/config/sample_1.yaml").file)
+        parser = ConfigurationFactory(
+            file.parentFile,
+        )
+        val configuration = parser.parse(file)
+
+        configuration.analyticsTracking shouldBeEqualTo true
+        configuration.bugsnagReporting shouldBeEqualTo true
+    }
+
+    @Test
+    fun `on configuration with tracking disabled in cli`() {
+        val file = File(ConfigurationFactoryTest::class.java.getResource("/fixture/config/sample_1.yaml").file)
+        parser = ConfigurationFactory(
+            file.parentFile,
+            analyticsTracking = false,
+            bugsnagReporting = false,
+        )
+        val configuration = parser.parse(file)
+
+        configuration.analyticsTracking shouldBeEqualTo false
+        configuration.bugsnagReporting shouldBeEqualTo false
+    }
+
+    @Test
+    fun `on configuration with tracking disabled in config file`() {
+        val file = File(ConfigurationFactoryTest::class.java.getResource("/fixture/config/sample_1_no_tracking.yaml").file)
+        parser = ConfigurationFactory(
+            file.parentFile,
+        )
+        val configuration = parser.parse(file)
+
+        configuration.analyticsTracking shouldBeEqualTo false
+        configuration.bugsnagReporting shouldBeEqualTo false
     }
 }

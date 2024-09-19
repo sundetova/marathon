@@ -6,6 +6,7 @@ import com.malinskiy.marathon.log.MarathonLogging
 import com.malinskiy.marathon.test.Test
 import com.malinskiy.marathon.test.toSafeTestName
 import kotlinx.coroutines.runBlocking
+import java.time.Duration
 import java.time.Instant
 
 private data class MeasurementKey(val key: Double = Double.NaN, val limit: Instant)
@@ -19,7 +20,11 @@ private class MeasurementValues(private val values: Map<String, Double>) {
 private const val RETRY_DELAY: Long = 50L
 
 
-class MetricsProviderImpl(private val remoteDataStore: RemoteDataSource) : MetricsProvider {
+class MetricsProviderImpl(
+    private val remoteDataStore: RemoteDataSource,
+    private val defaultSuccessRate: Double,
+    private val defaultDuration: Duration
+) : MetricsProvider {
 
     private val logger = MarathonLogging.logger(MetricsProviderImpl::class.java.simpleName)
 
@@ -44,10 +49,13 @@ class MetricsProviderImpl(private val remoteDataStore: RemoteDataSource) : Metri
         }
 
         val testName = test.toSafeTestName()
-        return successRateMeasurements[key]?.get(testName) ?: {
-            logger.warn { "No success rate found for $testName. Using 0 i.e. fails all the time" }
-            0.0
-        }()
+        return successRateMeasurements[key]?.get(testName) ?: run {
+            if (!warningSuccessRateTimeReported.contains(testName)) {
+                logger.warn { "No success rate found for $testName. Using $defaultSuccessRate" }
+                warningSuccessRateTimeReported.add(testName)
+            }
+            defaultSuccessRate
+        }
     }
 
     private fun fetchSuccessRateData(limit: Instant) = runBlocking {
@@ -76,11 +84,18 @@ class MetricsProviderImpl(private val remoteDataStore: RemoteDataSource) : Metri
                    })
         }
         val testName = test.toSafeTestName()
-        return executionTimeMeasurements[key]?.get(testName) ?: {
-            logger.warn { "No execution time found for $testName. Using 300_000 seconds i.e. long test" }
-            300_000.0
-        }()
+        return executionTimeMeasurements[key]?.get(testName) ?: run {
+            val default = defaultDuration.toMillis()
+            if (!warningExecutionTimeReported.contains(testName)) {
+                logger.warn { "No execution time found for $testName. Using $default seconds" }
+                warningExecutionTimeReported.add(testName)
+            }
+            default.toDouble()
+        }
     }
+
+    private val warningExecutionTimeReported = hashSetOf<String>()
+    private val warningSuccessRateTimeReported = hashSetOf<String>()
 
     private fun fetchExecutionTime(percentile: Double, limit: Instant) = runBlocking {
         withRetry(3, RETRY_DELAY) {

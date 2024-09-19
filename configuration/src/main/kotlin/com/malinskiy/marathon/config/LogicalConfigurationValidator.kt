@@ -27,16 +27,24 @@ class LogicalConfigurationValidator : ConfigurationValidator {
             is VendorConfiguration.IOSConfiguration -> {
                 configuration.vendorConfiguration.validate()
             }
+            is VendorConfiguration.AndroidConfiguration -> {
+                configuration.vendorConfiguration.validate()
+            }
 
             else -> Unit
         }
 
         when(configuration.executionStrategy.mode) {
             ExecutionMode.ANY_SUCCESS -> {
-                if (configuration.shardingStrategy !is ShardingStrategyConfiguration.ParallelShardingStrategyConfiguration) {
-                    throw ConfigurationException(
-                        "Configuration is invalid: can't use complex sharding and any success execution strategy at the same time. Consult documentation for the any success execution logic"
-                    )
+                when(configuration.shardingStrategy) {
+                    is ShardingStrategyConfiguration.CountShardingStrategyConfiguration -> {
+                        if (configuration.shardingStrategy.count != 1) {
+                            throw ConfigurationException(
+                                "Configuration is invalid: can't use complex sharding and any success execution strategy at the same time. Consult documentation for the any success execution logic"
+                            )
+                        }
+                    }
+                    else -> Unit
                 }
             }
             ExecutionMode.ALL_SUCCESS -> {

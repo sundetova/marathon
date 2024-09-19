@@ -21,10 +21,10 @@ import com.malinskiy.marathon.io.FileManager
 import com.malinskiy.marathon.io.FileType
 import com.malinskiy.marathon.report.attachment.AttachmentListener
 import com.malinskiy.marathon.test.TestBatch
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.times
-import com.nhaarman.mockitokotlin2.verify
-import com.nhaarman.mockitokotlin2.whenever
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -81,7 +81,7 @@ class ScreenCapturerTestRunListenerTest {
             listener.testFailed(test1, "trace")
             listener.testEnded(test1, mapOf())
 
-            verify(attachmentListener, times(1)).onAttachment(test1.toTest(), Attachment(screenshot, AttachmentType.SCREENSHOT_GIF))
+            verify(attachmentListener, times(1)).onAttachment(test1.toTest(), Attachment(screenshot, AttachmentType.SCREENSHOT_GIF, Attachment.Name.SCREEN))
         }
     }
 
@@ -105,9 +105,9 @@ class ScreenCapturerTestRunListenerTest {
             }
 
             device.setup()
-            whenever(fileManager.createFile(FileType.SCREENSHOT, devicePoolId, device.toDeviceInfo(), test1.toTest(), batch.id))
+            whenever(fileManager.createFile(FileType.SCREENSHOT, devicePoolId, device.toDeviceInfo(), test = test1.toTest(), testBatchId = batch.id))
                 .thenReturn(screenshot)
-            whenever(fileManager.createFile(FileType.SCREENSHOT, devicePoolId, device.toDeviceInfo(), batch.id))
+            whenever(fileManager.createFile(FileType.SCREENSHOT, devicePoolId, device.toDeviceInfo(), testBatchId = batch.id))
                 .thenReturn(screenshotBatch)
 
             val listener = ScreenCapturerTestRunListener(
@@ -126,8 +126,8 @@ class ScreenCapturerTestRunListenerTest {
             delay(300)
             listener.testRunFailed("Problems are all around us")
 
-            verify(fileManager, times(2)).createFile(FileType.SCREENSHOT, devicePoolId, device.toDeviceInfo(), test1.toTest(), batch.id)
-            verify(fileManager, times(1)).createFile(FileType.SCREENSHOT, devicePoolId, device.toDeviceInfo(), batch.id)
+            verify(fileManager, times(2)).createFile(FileType.SCREENSHOT, devicePoolId, device.toDeviceInfo(), test = test1.toTest(), testBatchId = batch.id)
+            verify(fileManager, times(1)).createFile(FileType.SCREENSHOT, devicePoolId, device.toDeviceInfo(), testBatchId = batch.id)
         }
     }
 

@@ -41,6 +41,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.context.stopKoin
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.coroutineContext
+import kotlin.system.measureTimeMillis
 
 private val log = MarathonLogging.logger {}
 
@@ -100,33 +101,37 @@ class Marathon(
     }
 
     suspend fun runAsync(executionCommand: ExecutionCommand = MarathonRunCommand): Boolean {
-        configureLogging()
+        var parsedAllTests: List<Test> = emptyList()
+        measureTimeMillis {
+            configureLogging()
 
-        logSystemInformation()
-        configurationValidator.validate(configuration)
+            logSystemInformation()
+            configurationValidator.validate(configuration)
 
-        deviceProvider.initialize()
-        val parsedAllTests = when (testParser) {
-            is LocalTestParser -> testParser.extract()
-            is RemoteTestParser<*> -> {
-                withRetry(3, 0) {
+            deviceProvider.initialize()
+            parsedAllTests = when (testParser) {
+                is LocalTestParser -> testParser.extract()
+                is RemoteTestParser<*> -> {
                     withTimeoutOrNull(configuration.deviceInitializationTimeoutMillis) {
-                        val borrowedDevice = deviceProvider.borrow()
-                        testParser.extract(borrowedDevice)
+                        withRetry(3, 0) {
+                            val borrowedDevice = deviceProvider.borrow()
+                            testParser.extract(borrowedDevice)
+                        }
                     } ?: throw NoDevicesException("Timed out waiting for a temporary device for remote test parsing")
                 }
-            }
 
-            else -> {
-                throw ConfigurationException("Unknown test parser type for ${testParser::class}, should inherit from either ${LocalTestParser::class.simpleName} or ${RemoteTestParser::class.simpleName}")
+                else -> {
+                    throw ConfigurationException("Unknown test parser type for ${testParser::class}, should inherit from either ${LocalTestParser::class.simpleName} or ${RemoteTestParser::class.simpleName}")
+                }
             }
-        }
+        }.let { log.debug { "Parsing took $it ms" } }
 
         usageTracker.meta(
             version = BuildConfig.VERSION, releaseMode = BuildConfig.RELEASE_MODE, vendor = when (configuration.vendorConfiguration) {
                 is VendorConfiguration.AndroidConfiguration -> "android"
                 is VendorConfiguration.EmptyVendorConfiguration -> "empty"
                 is VendorConfiguration.IOSConfiguration -> "ios"
+                is VendorConfiguration.MacosConfiguration -> "macos"
                 VendorConfiguration.StubVendorConfiguration -> "testing"
             }
         )
@@ -135,18 +140,23 @@ class Marathon(
         val parsedFilteredTests = applyTestFilters(parsedAllTests)
 
         if (executionCommand is ParseCommand) {
+            // Delay potentially querying remote TSDB unless user requested to get flaky tests
+            val flakyTests = if (executionCommand.includeFlakyTests) {
+                prepareTestShard(parsedFilteredTests, analytics).flakyTests.toList()
+            } else emptyList()
             marathonTestParseCommand.execute(
                 tests = parsedFilteredTests,
+                flakyTests = flakyTests,
                 outputFileName = executionCommand.outputFileName
             )
             stopKoin()
             return true
         }
 
+        val shard = prepareTestShard(parsedFilteredTests, analytics)
+
         usageTracker.trackEvent(Event.TestsTotal(parsedAllTests.size))
         usageTracker.trackEvent(Event.TestsRun(parsedFilteredTests.size))
-
-        val shard = prepareTestShard(parsedFilteredTests, analytics)
 
         log.info("Scheduling ${parsedFilteredTests.size} tests")
         log.debug(parsedFilteredTests.joinToString(", ") { it.toTestName() })
@@ -211,9 +221,7 @@ class Marathon(
     }
 
     private fun applyTestFilters(parsedTests: List<Test>): List<Test> {
-        var tests = parsedTests.filter { test ->
-            configuration.testClassRegexes.all { it.matches(test.clazz) }
-        }
+        var tests = parsedTests
         configuration.filteringConfiguration.allowlist.forEach { tests = it.toTestFilter().filter(tests) }
         configuration.filteringConfiguration.blocklist.forEach { tests = it.toTestFilter().filterNot(tests) }
         return tests

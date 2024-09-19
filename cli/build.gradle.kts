@@ -4,7 +4,7 @@ plugins {
     jacoco
     id("org.jetbrains.kotlin.jvm")
     id("org.jetbrains.dokka")
-    id("com.github.gmazzo.buildconfig") version "4.0.1"
+    id("com.github.gmazzo.buildconfig") version "5.3.5"
 }
 
 val enableJDB = false
@@ -34,7 +34,8 @@ distributions {
 
 dependencies {
     implementation(project(":core"))
-    implementation(project(":vendor:vendor-ios"))
+    implementation(project(":vendor:vendor-apple:ios"))
+    implementation(project(":vendor:vendor-apple:macos"))
     implementation(project(":vendor:vendor-android"))
     implementation(project(":analytics:usage"))
     implementation(Libraries.kotlinStdLib)

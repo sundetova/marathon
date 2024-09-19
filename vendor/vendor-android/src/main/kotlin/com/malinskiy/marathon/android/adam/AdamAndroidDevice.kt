@@ -17,6 +17,7 @@ import com.malinskiy.adam.request.framebuffer.BufferedImageScreenCaptureAdapter
 import com.malinskiy.adam.request.framebuffer.ScreenCaptureRequest
 import com.malinskiy.adam.request.pkg.InstallRemotePackageRequest
 import com.malinskiy.adam.request.pkg.InstallSplitPackageRequest
+import com.malinskiy.adam.request.pkg.StreamingPackageInstallRequest
 import com.malinskiy.adam.request.pkg.UninstallRemotePackageRequest
 import com.malinskiy.adam.request.pkg.multi.ApkSplitInstallationPackage
 import com.malinskiy.adam.request.prop.GetPropRequest
@@ -39,15 +40,18 @@ import com.malinskiy.marathon.android.AndroidTestBundleIdentifier
 import com.malinskiy.marathon.android.BaseAndroidDevice
 import com.malinskiy.marathon.android.RemoteFileManager
 import com.malinskiy.marathon.android.adam.extension.toShellResult
+import com.malinskiy.marathon.android.adam.log.LogCatMessage
 import com.malinskiy.marathon.android.exception.CommandRejectedException
 import com.malinskiy.marathon.android.exception.InstallException
 import com.malinskiy.marathon.exceptions.TransferException
 import com.malinskiy.marathon.execution.listener.LineListener
 import com.malinskiy.marathon.android.extension.toScreenRecorderCommand
+import com.malinskiy.marathon.android.logcat.LogcatListener
 import com.malinskiy.marathon.config.Configuration
 import com.malinskiy.marathon.config.vendor.VendorConfiguration
 import com.malinskiy.marathon.config.vendor.android.SerialStrategy
 import com.malinskiy.marathon.config.vendor.android.VideoConfiguration
+import com.malinskiy.marathon.coroutines.newCoroutineExceptionHandler
 import com.malinskiy.marathon.device.DevicePoolId
 import com.malinskiy.marathon.device.NetworkState
 import com.malinskiy.marathon.device.file.measureFileTransfer
@@ -60,7 +64,9 @@ import com.malinskiy.marathon.test.TestBatch
 import com.malinskiy.marathon.time.Timer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.newFixedThreadPoolContext
@@ -70,6 +76,7 @@ import kotlinx.coroutines.withContext
 import java.awt.image.BufferedImage
 import java.io.File
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.CoroutineContext
 import com.malinskiy.marathon.android.model.ShellCommandResult as MarathonShellCommandResult
 
@@ -78,6 +85,7 @@ class AdamAndroidDevice(
     private val deviceStateTracker: DeviceStateTracker,
     private val logcatManager: LogcatManager,
     private val testBundleIdentifier: AndroidTestBundleIdentifier,
+    private val installContext: CoroutineContext,
     adbSerial: String,
     configuration: Configuration,
     androidConfiguration: VendorConfiguration.AndroidConfiguration,
@@ -116,7 +124,8 @@ class AdamAndroidDevice(
     private val dispatcher by lazy {
         newFixedThreadPoolContext(2, "AndroidDevice - execution - ${client.host.hostAddress}:${client.port}:${adbSerial}")
     }
-    override val coroutineContext: CoroutineContext = dispatcher
+
+    override val coroutineContext = dispatcher + newCoroutineExceptionHandler(logger)
 
     private var props: Map<String, String> = emptyMap()
 
@@ -156,17 +165,25 @@ class AdamAndroidDevice(
                 when {
                     stat.exists() && stat.size() > 0.toULong() -> {
                         val channel = client.execute(
-                            CompatPullFileRequest(remoteFilePath, local, supportedFeatures, coroutineScope = this, size = stat.size().toLong()),
+                            CompatPullFileRequest(
+                                remoteFilePath,
+                                local,
+                                supportedFeatures,
+                                coroutineScope = this,
+                                size = stat.size().toLong()
+                            ),
                             serial = adbSerial
                         )
                         for (update in channel) {
                             progress = update
                         }
                     }
+
                     stat.exists() && stat.size() == 0.toULong() -> {
                         local.createNewFile()
                         progress = 1.0
                     }
+
                     else -> throw TransferException("Couldn't pull file $remoteFilePath from device $serialNumber because it doesn't exist")
                 }
             }
@@ -189,7 +206,14 @@ class AdamAndroidDevice(
         try {
             measureFileTransfer(File(localFilePath)) {
                 val channel = client.execute(
-                    CompatPushFileRequest(file, remoteFilePath, supportedFeatures, coroutineScope = this),
+                    CompatPushFileRequest(
+                        file,
+                        remoteFilePath,
+                        supportedFeatures,
+                        coroutineScope = this,
+                        mode = "0777",
+                        coroutineContext = installContext
+                    ),
                     serial = adbSerial
                 )
                 for (update in channel) {
@@ -279,7 +303,41 @@ class AdamAndroidDevice(
         }
     }
 
-    override suspend fun installPackage(absolutePath: String, reinstall: Boolean, optionalParams: List<String>): MarathonShellCommandResult {
+    override suspend fun installPackage(
+        absolutePath: String,
+        reinstall: Boolean,
+        optionalParams: List<String>
+    ): MarathonShellCommandResult {
+        return if (supportedFeatures.contains(Feature.ABB_EXEC) || supportedFeatures.contains(Feature.CMD)) {
+            installPackageStreaming(absolutePath, reinstall, optionalParams)
+        } else {
+            installPackageLegacy(absolutePath, reinstall, optionalParams)
+        }
+    }
+
+    private suspend fun installPackageStreaming(
+        absolutePath: String,
+        reinstall: Boolean,
+        optionalParams: List<String>
+    ): MarathonShellCommandResult {
+        val result = withTimeoutOrNull(androidConfiguration.timeoutConfiguration.install) {
+            client.execute(
+                StreamingPackageInstallRequest(
+                    File(absolutePath),
+                    supportedFeatures,
+                    reinstall,
+                    extraArgs = optionalParams.filter { it.isNotBlank() },
+                ), serial = adbSerial
+            )
+        } ?: throw InstallException("Timeout installing $absolutePath")
+        return com.malinskiy.marathon.android.model.ShellCommandResult(result.output, if (result.success) 0 else 1)
+    }
+
+    private suspend fun installPackageLegacy(
+        absolutePath: String,
+        reinstall: Boolean,
+        optionalParams: List<String>
+    ): MarathonShellCommandResult {
         val file = File(absolutePath)
         //Very simple escaping for the name of the file
         val fileName = file.name.escape()
@@ -333,34 +391,49 @@ class AdamAndroidDevice(
         }
     }
 
-    private val logcatListeners = mutableListOf<LineListener>()
+    private val logListeners = CopyOnWriteArrayList<LineListener>()
+    private val logcatListeners = CopyOnWriteArrayList<LogcatListener>()
 
     override fun addLineListener(listener: LineListener) {
-        synchronized(logcatListeners) {
-            logcatListeners.add(listener)
-        }
+        logListeners.add(listener)
     }
 
     override fun removeLineListener(listener: LineListener) {
-        synchronized(logcatListeners) {
-            logcatListeners.remove(listener)
-        }
+        logListeners.remove(listener)
+    }
+
+    override fun addLogcatListener(listener: LogcatListener) {
+        logcatListeners.add(listener)
+    }
+
+    override fun removeLogcatListener(listener: LogcatListener) {
+        logcatListeners.remove(listener)
     }
 
     override suspend fun safeStartScreenRecorder(
         remoteFilePath: String,
         options: VideoConfiguration
     ) {
-        val screenRecorderCommand = options.toScreenRecorderCommand(remoteFilePath)
+        val supportsInfiniteRecording = apiLevel >= 34
+        val screenRecorderCommand = options.toScreenRecorderCommand(remoteFilePath, supportsInfiniteRecording)
         try {
             withTimeoutOrNull(androidConfiguration.timeoutConfiguration.screenrecorder) {
-                val output = client.execute(ShellCommandRequest(screenRecorderCommand), serial = adbSerial)
-                logger.debug { "screenrecord output:\n $output" }
+                logger.debug { "Running screenrecorder for $remoteFilePath" }
+                val result = client.execute(ShellCommandRequest(screenRecorderCommand), serial = adbSerial)
+                logger.debug {
+                    StringBuilder().apply {
+                        append("screenrecord result: ")
+                        if (result.output.isNotBlank()) append("output='${result.output}'")
+                        append("exit code=${result.exitCode}")
+                    }.toString()
+                }
             }
         } catch (e: CancellationException) {
-            //Ignore
+            logger.warn(e) { "screenrecord start was interrupted" }
+            throw e
         } catch (e: Exception) {
             logger.error("Unable to start screenrecord", e)
+            throw e
         }
     }
 
@@ -391,17 +464,26 @@ class AdamAndroidDevice(
         testBatch: TestBatch,
         deferred: CompletableDeferred<TestBatchResults>
     ) {
+        var job: Job? = null
         try {
-            async(coroutineContext) {
+            job = async(coroutineContext + CoroutineName("execute $serialNumber")) {
                 supervisorScope {
                     val listener = createExecutionListeners(configuration, devicePoolId, testBatch, deferred)
-                    AndroidDeviceTestRunner(this@AdamAndroidDevice, testBundleIdentifier).execute(configuration, testBatch, listener)
+                    AndroidDeviceTestRunner(this@AdamAndroidDevice, testBundleIdentifier).execute(
+                        configuration,
+                        testBatch,
+                        listener
+                    )
                 }
-            }.await()
+            }
+            job.await()
         } catch (e: RequestRejectedException) {
             throw DeviceLostException(e)
         } catch (e: CommandRejectedException) {
             throw DeviceLostException(e)
+        } catch (e: CancellationException) {
+            job?.cancel(e)
+            throw e
         }
     }
 
@@ -435,8 +517,14 @@ class AdamAndroidDevice(
         return client.execute(runnerRequest, serial = adbSerial)
     }
 
+    suspend fun onLogcat(msg: LogCatMessage) {
+        //Bridge to regular string lines log
+        onLine("${msg.timestamp} ${msg.pid}-${msg.tid}/${msg.appName} ${msg.logLevel.priorityLetter}/${msg.tag}: ${msg.message}")
+        logcatListeners.forEach { it.onMessage(msg) }
+    }
+
     override suspend fun onLine(line: String) {
-        logcatListeners.forEach { listener ->
+        logListeners.forEach { listener ->
             listener.onLine(line)
         }
     }

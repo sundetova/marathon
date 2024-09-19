@@ -38,7 +38,7 @@ val analyticsModule = module {
 val coreModule = module {
     single {
         val configuration = get<Configuration>()
-        FileManager(configuration.outputConfiguration.maxPath, configuration.outputDir) 
+        FileManager(configuration.outputConfiguration.maxPath, configuration.outputConfiguration.maxFilename, configuration.outputDir)
     }
     single {
         GsonBuilder()
@@ -57,6 +57,7 @@ val coreModule = module {
 fun marathonStartKoin(configuration: Configuration, modules: List<Module>): KoinApplication {
     val configurationModule = module {
         single { configuration }
+        single { configuration.vendorConfiguration }
     }
 
     return startKoin {

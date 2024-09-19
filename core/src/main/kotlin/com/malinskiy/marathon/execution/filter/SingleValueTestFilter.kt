@@ -9,31 +9,29 @@ open class SingleValueTestFilter(
     val regex: Regex?,
     val values: List<String>?,
     val file: File?,
+    val enabled: Boolean,
     val predicate: SingleValueTestFilter.(test: Test, values: List<String>?) -> Boolean,
 ) : TestFilter {
     private val log = MarathonLogging.logger("SingleValueTestFilter")
 
     private val fileValuesCache: List<String>? by lazy {
-        file?.let { valuesFile ->
-            if (valuesFile.exists()) {
-                valuesFile.readLines().filter { it.isNotBlank() }
-            } else {
-                log.error { "Filtering configuration file ${valuesFile.absoluteFile} does not exist. Applying empty list." }
-                emptyList()
-            }
-        }
+        FilterValuesFileReader().readValues(file)
     }
 
     private fun readValues(): List<String>? {
         return values ?: fileValuesCache
     }
 
-    override fun filter(tests: List<Test>): List<Test> = with(tests) {
-        filter { predicate(this@SingleValueTestFilter, it, readValues()) }
+    override fun filter(tests: List<Test>): List<Test> = if (enabled) {
+        tests.filter { predicate(this@SingleValueTestFilter, it, readValues()) }
+    } else {
+        tests
     }
 
-    override fun filterNot(tests: List<Test>): List<Test> = with(tests) {
-        filterNot { predicate(this@SingleValueTestFilter, it, readValues()) }
+    override fun filterNot(tests: List<Test>): List<Test> = if (enabled) {
+        tests.filterNot { predicate(this@SingleValueTestFilter, it, readValues()) }
+    } else {
+        tests
     }
 
     override fun equals(other: Any?): Boolean {

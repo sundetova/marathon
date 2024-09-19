@@ -3,6 +3,7 @@ package com.malinskiy.marathon.cli
 import com.github.ajalt.clikt.core.PrintMessage
 import com.github.ajalt.clikt.core.subcommands
 import com.malinskiy.marathon.Marathon
+import com.malinskiy.marathon.exceptions.ExceptionsReporter
 import com.malinskiy.marathon.android.AndroidVendor
 import com.malinskiy.marathon.android.adam.di.adamModule
 import com.malinskiy.marathon.cli.args.CliConfiguration
@@ -19,7 +20,8 @@ import com.malinskiy.marathon.config.serialization.ConfigurationFactory
 import com.malinskiy.marathon.config.vendor.VendorConfiguration
 import com.malinskiy.marathon.di.marathonStartKoin
 import com.malinskiy.marathon.exceptions.ExceptionsReporterFactory
-import com.malinskiy.marathon.ios.AppleVendor
+import com.malinskiy.marathon.apple.ios.IosVendor
+import com.malinskiy.marathon.apple.macos.MacosVendor
 import com.malinskiy.marathon.log.MarathonLogging
 import org.koin.core.context.stopKoin
 import org.koin.dsl.module
@@ -45,10 +47,8 @@ private fun execute(cliConfiguration: CliConfiguration) {
         else -> throw IllegalArgumentException("Please handle the new format of cliConfiguration=$cliConfiguration")
     }
 
-    val bugsnagExceptionsReporter = ExceptionsReporterFactory.get(marathonStartConfiguration.bugsnagReporting)
+    var bugsnagExceptionsReporter: ExceptionsReporter? = null;
     try {
-        bugsnagExceptionsReporter.start(AppType.CLI)
-
         logger.info { "Checking ${marathonStartConfiguration.marathonfile} config" }
         if (!marathonStartConfiguration.marathonfile.isFile) {
             logger.error { "No config ${marathonStartConfiguration.marathonfile.absolutePath} present" }
@@ -58,14 +58,22 @@ private fun execute(cliConfiguration: CliConfiguration) {
         val configuration = ConfigurationFactory(
             marathonfileDir = marathonStartConfiguration.marathonfile.canonicalFile.parentFile,
             analyticsTracking = marathonStartConfiguration.analyticsTracking,
+            bugsnagReporting = marathonStartConfiguration.bugsnagReporting,
         ).parse(marathonStartConfiguration.marathonfile)
+
+        bugsnagExceptionsReporter = ExceptionsReporterFactory.get(configuration.bugsnagReporting)
+        bugsnagExceptionsReporter.start(AppType.CLI)
+
         val vendorConfiguration = configuration.vendorConfiguration
         val modules = when (vendorConfiguration) {
             is VendorConfiguration.IOSConfiguration -> {
-                AppleVendor + module { single { vendorConfiguration } }
+                IosVendor + module { single { vendorConfiguration } }
             }
             is VendorConfiguration.AndroidConfiguration -> {
                 AndroidVendor + module { single { vendorConfiguration } } + listOf(adamModule)
+            }
+            is VendorConfiguration.MacosConfiguration -> {
+                MacosVendor + module { single { vendorConfiguration } }
             }
             else -> throw ConfigurationException("No vendor config present in ${marathonStartConfiguration.marathonfile.absolutePath}")
         }
@@ -77,16 +85,18 @@ private fun execute(cliConfiguration: CliConfiguration) {
             marathon.run(marathonStartConfiguration.executionCommand)
         } catch (e: Exception) {
             logger.error(e) {}
-            throw PrintMessage(message = "Marathon execution crashed", error = true)
+            throw PrintMessage(message = "Marathon execution crashed", statusCode = 1, printError = true)
         }
 
         when {
-            success -> throw PrintMessage(message = "Marathon execution finished", error = false)
-            configuration.ignoreFailures -> throw PrintMessage(message = "Marathon execution finished with failures (Failures suppressed because ignoreFailures is `true`)", error = false)
-            else -> throw PrintMessage(message = "Marathon execution failed", error = true)
+            success -> throw PrintMessage(message = "Marathon execution finished", statusCode = 0, printError = false)
+            configuration.ignoreFailures -> throw PrintMessage(message = "Marathon execution finished with failures (Failures suppressed because ignoreFailures is `true`)", statusCode = 0, printError = true)
+            else -> throw PrintMessage(message = "Marathon execution failed", statusCode = 1, printError = true)
         }
     } finally {
         stopKoin()
-        bugsnagExceptionsReporter.end()
+        if (bugsnagExceptionsReporter != null) {
+            bugsnagExceptionsReporter.end()
+        }
     }
 }

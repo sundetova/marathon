@@ -57,11 +57,17 @@ internal class BillingReporter(
 
         bills.forEach {
             val json = gson.toJson(it)
-            fileManager.createFile(FileType.BILL, it.pool, it.device).writeText(json)
+            fileManager.createFile(FileType.BILL, it.pool, device = it.device).writeText(json)
         }
 
         usageTracker.trackEvent(Event.Devices(bills.size))
-        usageTracker.trackEvent(Event.Executed(seconds = bills.sumOf { it.duration } / 1000))
+        val result = executionReport.summary.pools.map { it.failed.isEmpty() }.reduceOrNull { acc, b -> acc && b } ?: true
+        val flakiness = executionReport.summary.pools.sumOf { (it.rawDurationMillis - it.durationMillis) / 1000 }
+        val durationSeconds = ((Instant.now().toEpochMilli() - defaultStart.toEpochMilli()) / 1000)
+        usageTracker.trackEvent(Event.Executed(seconds = bills.sumOf { it.duration } / 1000,
+                                               success = result,
+                                               flakinessSeconds = flakiness,
+                                               durationSeconds = durationSeconds))
     }
 }
 

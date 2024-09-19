@@ -1,13 +1,13 @@
 package com.malinskiy.marathon.analytics.metrics.remote.graphite
 
-import com.nhaarman.mockitokotlin2.any
-import com.nhaarman.mockitokotlin2.eq
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.whenever
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
 import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldEqual
 import org.amshove.kluent.shouldEqualTo
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.whenever
 import java.time.Instant
 
 internal class GraphiteDataSourceTest {
@@ -27,7 +27,7 @@ internal class GraphiteDataSourceTest {
         val rate = provider.requestAllSuccessRates(limit)
 
         rate.size shouldEqualTo 1
-        rate[0].mean shouldEqualTo 0.5
+        rate[0].mean shouldBeEqualTo 0.5
         rate[0].testName shouldBeEqualTo "com.example.SingleTest.method"
     }
 
@@ -47,6 +47,6 @@ internal class GraphiteDataSourceTest {
 
         rate.size shouldEqual 1
         rate[0].testName shouldBeEqualTo "com.example.SingleTest.method"
-        rate[0].percentile shouldEqualTo 5000.0
+        rate[0].percentile shouldBeEqualTo 5000.0
     }
 }

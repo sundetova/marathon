@@ -1,11 +1,12 @@
 plugins {
     id("com.android.library")
     id("kotlin-android")
-    id("com.malinskiy.marathon") version "0.8.2-SNAPSHOT"
+    id("com.malinskiy.marathon") version "0.10.0"
 }
 
 android {
-    buildToolsVersion = "30.0.3"
+    namespace = "com.example.library"
+    buildToolsVersion = "34.0.0"
     compileSdk = 33
 
     defaultConfig {

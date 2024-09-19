@@ -19,10 +19,10 @@ import com.malinskiy.marathon.execution.listener.LogListener
 import com.malinskiy.marathon.report.attachment.AttachmentListener
 import com.malinskiy.marathon.report.logs.LogWriter
 import com.malinskiy.marathon.test.TestBatch
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.times
-import com.nhaarman.mockitokotlin2.verify
-import com.nhaarman.mockitokotlin2.whenever
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -78,7 +78,7 @@ class LogListenerTest {
             listener.testEnded(test0)
             listener.onLine("3")
 
-            verify(attachmentListener, times(1)).onAttachment(test0, Attachment(logFile, AttachmentType.LOG))
+            verify(attachmentListener, times(1)).onAttachment(test0, Attachment(logFile, AttachmentType.LOG, Attachment.Name.LOG))
         }
     }
 
@@ -120,7 +120,7 @@ class LogListenerTest {
             listener.testEnded(test0)
             listener.onLine("3")
 
-            verify(attachmentListener, times(1)).onAttachment(test0, Attachment(logFile, AttachmentType.LOG))
+            verify(attachmentListener, times(1)).onAttachment(test0, Attachment(logFile, AttachmentType.LOG, Attachment.Name.LOG))
         }
     }
 
@@ -172,8 +172,8 @@ class LogListenerTest {
             listener.onLine("d")
 
 
-            verify(attachmentListener, times(1)).onAttachment(test0, Attachment(logFile1, AttachmentType.LOG))
-            verify(attachmentListener, times(1)).onAttachment(test1, Attachment(logFile2, AttachmentType.LOG))
+            verify(attachmentListener, times(1)).onAttachment(test0, Attachment(logFile1, AttachmentType.LOG, Attachment.Name.LOG))
+            verify(attachmentListener, times(1)).onAttachment(test1, Attachment(logFile2, AttachmentType.LOG, Attachment.Name.LOG))
         }
     }
 

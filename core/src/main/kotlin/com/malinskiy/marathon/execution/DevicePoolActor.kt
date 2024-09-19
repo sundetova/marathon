@@ -34,9 +34,7 @@ class DevicePoolActor(
     context: CoroutineContext,
     testBundleIdentifier: TestBundleIdentifier?,
 ) :
-    Actor<DevicePoolMessage>(parent = parent, context = context) {
-
-    private val logger = MarathonLogging.logger("DevicePoolActor[${poolId.name}]")
+    Actor<DevicePoolMessage>(parent = parent, context = context, logger = MarathonLogging.logger("DevicePoolActor[${poolId.name}]")) {
 
     override suspend fun receive(msg: DevicePoolMessage) {
         when (msg) {
@@ -80,6 +78,7 @@ class DevicePoolActor(
     }
 
     private suspend fun onQueueTerminated() {
+        logger.debug { "pool $poolId: onQueueTerminated" }
         devices.values.forEach {
             it.safeSend(DeviceEvent.Terminate)
         }
@@ -87,6 +86,7 @@ class DevicePoolActor(
     }
 
     private suspend fun deviceReturnedTestBatch(device: Device, batch: TestBatch, reason: String) {
+        logger.debug { "pool $poolId: device ${device.serialNumber} returned test batch" }
         queue.send(QueueMessage.ReturnBatch(device.toDeviceInfo(), batch, reason))
     }
 
@@ -99,7 +99,7 @@ class DevicePoolActor(
     }
 
     // Requests a batch of tests for a random device from the list of devices not running tests at the moment.
-    // When @avoidingDevice is not null, attemtps to send the request for any other device whenever available.
+    // When @avoidingDevice is not null, attempts to send the request for any other device whenever available.
     private suspend fun maybeRequestBatch(avoidingDevice: Device? = null) {
         val availableDevices = devices.values.asSequence()
             .map { it as DeviceActor }
@@ -127,6 +127,7 @@ class DevicePoolActor(
     }
 
     private fun terminate() {
+        logger.debug { "terminate pool $poolId" }
         poolJob.cancel()
         close()
     }
@@ -138,6 +139,7 @@ class DevicePoolActor(
         logger.debug { "devices.size = ${devices.size}" }
         if (noActiveDevices()) {
             //TODO check if we still have tests and timeout if nothing available
+            logger.debug { "pool $poolId: noActiveDevices" }
             terminate()
         }
     }

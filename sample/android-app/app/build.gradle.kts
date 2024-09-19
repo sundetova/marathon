@@ -4,11 +4,11 @@ import com.malinskiy.marathon.config.vendor.android.TestParserConfiguration
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("com.malinskiy.marathon") version "0.8.2-SNAPSHOT"
+    id("com.malinskiy.marathon") version "0.10.0"
 }
 
 android {
-    buildToolsVersion = "33.0.0"
+    buildToolsVersion = "34.0.0"
     compileSdk = 33
 
     namespace = "com.example"
