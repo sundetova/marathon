@@ -15,7 +15,7 @@ data class SimpleTestNameFromFileFilter(val cnf: TestFilterConfiguration.SimpleT
                 testFileContent.contains(it.clazz)
             }
         } else if (cnf.regex != null) {
-            println("No file content found. Running by annotation $cnf.regex")
+            println("No file content found. Running by annotation ${cnf.regex}")
             return tests.filter { it.metaProperties.map { it.name }.any(cnf.regex!!::matches) }
         } else {
             println("No regex found. Running all tests")
@@ -33,7 +33,7 @@ data class SimpleTestNameFromFileFilter(val cnf: TestFilterConfiguration.SimpleT
     override fun hashCode(): Int = testFileContent.hashCode()
 
     override fun toString(): String {
-        return "SimpleClassnameFilterFromFile(fileName=${cnf.fileName})"
+        return "SimpleTestNameFromFileFilter(fileName=${cnf.fileName})"
     }
 }
 

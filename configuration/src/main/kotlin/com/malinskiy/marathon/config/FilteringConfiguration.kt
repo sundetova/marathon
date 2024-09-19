@@ -28,7 +28,6 @@ data class FilteringConfiguration(
     JsonSubTypes.Type(value = TestFilterConfiguration.FullyQualifiedTestnameFilterConfiguration::class, name = "fully-qualified-test-name"),
     JsonSubTypes.Type(value = TestFilterConfiguration.SimpleTestnameFilterConfiguration::class, name = "simple-test-name"),
     JsonSubTypes.Type(value = TestFilterConfiguration.SimpleClassnameFilterConfiguration::class, name = "simple-class-name"),
-    JsonSubTypes.Type(value = TestFilterConfiguration.SimpleClassnameFilterFromFile::class, name = "simple-test-name-from-file"),
     JsonSubTypes.Type(value = TestFilterConfiguration.SimpleTestNameFromFileFilterConfiguration::class, name = "simple-test-name-from-file"),
     JsonSubTypes.Type(value = TestFilterConfiguration.TestMethodFilterConfiguration::class, name = "method"),
     JsonSubTypes.Type(value = TestFilterConfiguration.TestPackageFilterConfiguration::class, name = "package"),
@@ -112,21 +111,6 @@ sealed class TestFilterConfiguration {
             result = 31 * result + (file?.hashCode() ?: 0)
             return result
         }
-    }
-
-    data class SimpleClassnameFilterFromFile(
-        @JsonProperty("fileName") val fileName: String,
-        @JsonProperty("regex") val regex: Regex? = null
-    ) : TestFilterConfiguration() {
-
-        override fun validate() {}
-
-        override fun equals(other: Any?): Boolean {
-            if (other !is SimpleClassnameFilterFromFile) return false
-            return fileName.contentEquals(other.regex.toString())
-        }
-
-        override fun hashCode(): Int = regex.hashCode() + fileName.toRegex().hashCode()
     }
 
     data class FullyQualifiedClassnameFilterConfiguration(
