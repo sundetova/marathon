@@ -20,6 +20,7 @@ import com.malinskiy.marathon.execution.filter.SimpleTestNameFromFileFilter
 import com.malinskiy.marathon.execution.filter.SimpleTestnameFilter
 import com.malinskiy.marathon.execution.filter.TestMethodFilter
 import com.malinskiy.marathon.execution.filter.TestPackageFilter
+import com.malinskiy.marathon.execution.filter.SimpleClassnameFilterFromFile
 import com.malinskiy.marathon.execution.strategy.BatchingStrategy
 import com.malinskiy.marathon.execution.strategy.FlakinessStrategy
 import com.malinskiy.marathon.execution.strategy.PoolingStrategy
@@ -71,6 +72,7 @@ fun TestFilterConfiguration.toTestFilter(): TestFilter {
         is TestFilterConfiguration.FullyQualifiedTestnameFilterConfiguration -> FullyQualifiedTestnameFilter(this)
         is TestFilterConfiguration.SimpleClassnameFilterConfiguration -> SimpleClassnameFilter(this)
         is TestFilterConfiguration.SimpleTestnameFilterConfiguration -> SimpleTestnameFilter(this)
+        is TestFilterConfiguration.SimpleClassnameFilterFromFile -> SimpleClassnameFilterFromFile(this)
         is TestFilterConfiguration.TestMethodFilterConfiguration -> TestMethodFilter(this)
         is TestFilterConfiguration.TestPackageFilterConfiguration -> TestPackageFilter(this)
         is TestFilterConfiguration.AllureFilterConfiguration -> AllureTestFilter(this)
